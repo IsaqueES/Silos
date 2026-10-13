@@ -7,7 +7,6 @@ const redirectTo = () => window.location.origin + window.location.pathname
 
 export default function Login({ onLocalLogin }) {
   const [email, setEmail] = useState('')
-  const [code, setCode] = useState('')
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
   // Erro devolvido pelo link do e-mail (ex.: link expirado) vem no hash da URL
@@ -16,7 +15,7 @@ export default function Login({ onLocalLogin }) {
     return desc ? erroDoLink(desc) : ''
   })
 
-  const sendCode = async (e) => {
+  const sendLink = async (e) => {
     e.preventDefault()
     setBusy(true)
     setError('')
@@ -27,16 +26,6 @@ export default function Login({ onLocalLogin }) {
     setBusy(false)
     if (error) setError(erroDoEnvio(error))
     else setSent(true)
-  }
-
-  const verify = async (e) => {
-    e.preventDefault()
-    setBusy(true)
-    setError('')
-    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' })
-    setBusy(false)
-    if (error) setError(erroDoCodigo(error.message))
-    // sucesso: o onAuthStateChange do App assume daqui
   }
 
   const microsoft = async () => {
@@ -64,7 +53,7 @@ export default function Login({ onLocalLogin }) {
             </p>
           </>
         ) : !sent ? (
-          <form className="login-form" onSubmit={sendCode}>
+          <form className="login-form" onSubmit={sendLink}>
             <label>
               E-mail
               <input
@@ -81,39 +70,23 @@ export default function Login({ onLocalLogin }) {
             </button>
           </form>
         ) : (
-          <form className="login-form" onSubmit={verify}>
+          <div className="login-form">
+            <div className="sent-icon">✉️</div>
             <p className="hint">
-              Enviamos um e-mail para <b>{email}</b>. <b>Clique no link</b> do e-mail ou, se ele trouxer um código,
-              digite abaixo. Confira também o lixo eletrônico.
+              Enviamos um link de acesso para <b>{email}</b>. Abra o e-mail <b>neste navegador</b> e clique no link para
+              entrar. Confira também o lixo eletrônico.
             </p>
-            <label>
-              Código
-              <input
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                required
-                autoFocus
-                placeholder="000000"
-                className="code-input"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              />
-            </label>
-            <button className="btn ms" disabled={busy || code.length < 6}>
-              {busy ? 'Verificando…' : 'Entrar'}
-            </button>
             <button
               type="button"
               className="link dark"
               onClick={() => {
                 setSent(false)
-                setCode('')
                 setError('')
               }}
             >
-              Usar outro e-mail / reenviar código
+              Usar outro e-mail / reenviar link
             </button>
-          </form>
+          </div>
         )}
 
         {!isLocalMode && microsoftEnabled && (
@@ -137,11 +110,6 @@ function erroDoEnvio(error) {
   if (/not authorized|invalid/i.test(msg))
     return `O Supabase recusou enviar para este e-mail: "${msg}". O servidor de e-mail padrão só envia para membros da organização no Supabase — veja o README.`
   return `Não foi possível enviar o e-mail: ${msg}`
-}
-
-function erroDoCodigo(msg) {
-  if (/expired|invalid/i.test(msg)) return 'Código inválido ou expirado. Peça um novo código.'
-  return msg
 }
 
 function erroDoLink(desc) {

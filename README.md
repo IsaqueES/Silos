@@ -60,12 +60,7 @@ A pessoa digita o e-mail, recebe um **link de acesso** e clica nele para entrar.
 2. **Envio de e-mails:** o servidor de e-mail padrão do Supabase só envia para e-mails que são membros da sua organização no Supabase, e no máximo poucos e-mails por hora. Em *Organization Settings > Team > Invite*, convide o e-mail de cada usuário do site e aceite o convite.
 3. Abra o site, digite o e-mail e clique no link que chegar. A sessão fica salva no navegador, então só é preciso entrar de novo depois de clicar em *Sair* ou trocar de navegador.
 
-**Se o link chegar "expirado/inválido"** (o antivírus do e-mail corporativo às vezes abre o link antes de você) ou se mais pessoas forem usar o site, configure um SMTP próprio em *Authentication > Emails > SMTP Settings*. Com ele você pode editar o template **Magic link or OTP** e colocar o código no e-mail; o site já aceita o código:
-```html
-<h2>Controle de Silos</h2>
-<p>Seu código de acesso é: <b style="font-size:24px">{{ .Token }}</b></p>
-```
-Opções grátis de SMTP: Gmail (com *senha de app*), Brevo ou Resend.
+**Se o link chegar "expirado/inválido"** (às vezes o antivírus do e-mail corporativo abre o link antes de você), peça outro. Se acontecer sempre, ou se mais pessoas forem usar o site, configure um SMTP próprio em *Authentication > Emails > SMTP Settings* (grátis: Gmail com *senha de app*, Brevo ou Resend), que também tira o limite de envios.
 
 <details>
 <summary>Opcional: login com Microsoft (precisa de permissão no Azure/Entra ID)</summary>
