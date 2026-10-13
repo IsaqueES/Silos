@@ -14,7 +14,7 @@ export default function Overview({ rows, onSelect }) {
 
       {rows.length === 0 && (
         <div className="empty">
-          Nenhuma NF ainda. Clique em <b>Importar CSV</b> e envie a base de NFs do período.
+          Nenhuma NF ainda. Clique em <b>+ Nova NF</b> para incluir uma, ou em <b>Importar CSV</b> para enviar a base do período.
         </div>
       )}
 

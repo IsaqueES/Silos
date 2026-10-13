@@ -1,17 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { isLocalMode, store, supabase } from './lib/store.js'
+import { auth, isLocalMode, SHARED_EMAIL, store } from './lib/store.js'
 import Login from './components/Login.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Overview from './components/Overview.jsx'
 import SiloView from './components/SiloView.jsx'
 import ImportDialog from './components/ImportDialog.jsx'
+import NfForm from './components/NfForm.jsx'
+import PasswordDialog from './components/PasswordDialog.jsx'
 import { SILOS } from './lib/stats.js'
+import { rowKey } from './lib/csv.js'
 
-
-const LOCAL_USER = { email: 'modo-local' }
+const NAME_KEY = 'silos:nome'
+const readName = () => {
+  try {
+    return localStorage.getItem(NAME_KEY) || ''
+  } catch {
+    return ''
+  }
+}
 
 export default function App() {
-  const [user, setUser] = useState(null)
+  const [session, setSession] = useState(null)
+  const [nome, setNome] = useState(readName)
   const [authReady, setAuthReady] = useState(false)
   const [allowed, setAllowed] = useState(null)
   const [rows, setRows] = useState([])
@@ -22,34 +32,37 @@ export default function App() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [importOpen, setImportOpen] = useState(false)
+  const [form, setForm] = useState(null) // null | { row?: linha sendo editada }
+  const [passwordOpen, setPasswordOpen] = useState(false)
 
-  // ---- autenticação ----
+  // ---- autenticação: nome de cada um + senha geral ----
   useEffect(() => {
-    if (isLocalMode) {
-      if (sessionStorage.getItem('silos:local-login')) setUser(LOCAL_USER)
-      setAuthReady(true)
-      return
-    }
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null)
+    auth.getSession().then((sess) => {
+      setSession(sess)
       setAuthReady(true)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setUser(session?.user ?? null))
-    return () => sub.subscription.unsubscribe()
+    return auth.onChange(setSession)
   }, [])
 
-  const localLogin = () => {
-    sessionStorage.setItem('silos:local-login', '1')
-    setUser(LOCAL_USER)
+  const login = async (name, password) => {
+    const sess = await auth.login(password)
+    try {
+      localStorage.setItem(NAME_KEY, name)
+    } catch {
+      /* sem localStorage: o nome vale só nesta aba */
+    }
+    setNome(name)
+    setSession(sess)
   }
 
   const logout = async () => {
-    if (isLocalMode) sessionStorage.removeItem('silos:local-login')
-    else await supabase.auth.signOut()
-    setUser(null)
+    await auth.logout()
+    setSession(null)
     setAllowed(null)
     setRows([])
   }
+
+  const loggedIn = !!session && !!nome
 
   // ---- dados ----
   const reload = useCallback(async () => {
@@ -65,7 +78,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!user) return
+    if (!loggedIn) return
     store
       .isAllowed()
       .then((ok) => {
@@ -76,7 +89,7 @@ export default function App() {
         setAllowed(false)
         setError(e.message)
       })
-  }, [user, reload])
+  }, [loggedIn, reload])
 
   useEffect(() => {
     // Não mexe no hash enquanto o Supabase ainda lê o token do link de login (#access_token=...)
@@ -105,8 +118,8 @@ export default function App() {
 
   const setStatus = async (ids, concluida) => {
     const patch = concluida
-      ? { concluida: true, concluida_em: new Date().toISOString(), concluida_por: user.email, origem: 'manual' }
-      : { concluida: false, concluida_em: null, concluida_por: null, origem: null }
+      ? { concluida: true, concluida_em: new Date().toISOString(), lancado_por: nome, origem: 'manual' }
+      : { concluida: false, concluida_em: null, lancado_por: null, concluida_por: null, origem: null }
     const idSet = new Set(ids)
     const before = rows
     setRows((rs) => rs.map((r) => (idSet.has(r.id) ? { ...r, ...patch } : r)))
@@ -122,7 +135,7 @@ export default function App() {
   const importBase = async (csvRows) => {
     const existing = new Set(rows.map((r) => [r.nf, r.silo, r.lote, r.material].join('|')))
     const fresh = csvRows.filter((r) => !existing.has([r.nf, r.silo, r.lote, r.material].join('|')))
-    await store.insert(fresh.map((r) => ({ ...r, concluida: false })))
+    await store.insert(fresh.map((r) => ({ ...r, concluida: false, adicionado_por: nome })))
     await reload()
     return `${fresh.length} NF(s) adicionadas como pendentes · ${csvRows.length - fresh.length} já existiam.`
   }
@@ -133,13 +146,43 @@ export default function App() {
     const knownNfs = new Set(rows.map((r) => r.nf))
     const toConclude = rows.filter((r) => nfs.has(r.nf) && !r.concluida).map((r) => r.id)
     const now = new Date().toISOString()
-    const meta = { concluida: true, concluida_em: now, concluida_por: user.email, origem: 'csv' }
-    const newRows = csvRows.filter((r) => !knownNfs.has(r.nf)).map((r) => ({ ...r, ...meta }))
+    const meta = { concluida: true, concluida_em: now, lancado_por: nome, origem: 'csv' }
+    const newRows = csvRows
+      .filter((r) => !knownNfs.has(r.nf))
+      .map((r) => ({ ...r, ...meta, adicionado_por: nome }))
     await store.update(toConclude, meta)
     await store.insert(newRows)
     await reload()
     const already = [...nfs].filter((nf) => knownNfs.has(nf)).length
     return `${toConclude.length} item(ns) marcados como OK · ${newRows.length} NF(s) novas criadas já concluídas · ${already} NF(s) do arquivo encontradas na base.`
+  }
+
+  // Inclusão/edição manual de uma NF pelo formulário
+  const saveNf = async (data, existing) => {
+    const key = rowKey(data)
+    if (rows.some((r) => r.id !== existing?.id && rowKey(r) === key))
+      throw new Error(`Já existe a NF ${data.nf} no silo ${data.silo} com o mesmo lote e material.`)
+    const wasDone = existing?.concluida ?? false
+    const status =
+      data.concluida === wasDone
+        ? {}
+        : data.concluida
+          ? { concluida_em: new Date().toISOString(), lancado_por: nome, origem: 'manual' }
+          : { concluida_em: null, lancado_por: null, concluida_por: null, origem: null }
+    if (existing) {
+      await store.update([existing.id], { ...data, ...status })
+      setToast(`NF ${data.nf} atualizada.`)
+    } else {
+      await store.insert([{ ...data, ...status, adicionado_por: nome }])
+      setToast(`NF ${data.nf} adicionada ao silo ${data.silo}.`)
+    }
+    await reload()
+  }
+
+  const deleteNf = async (row) => {
+    await store.remove([row.id])
+    setToast(`NF ${row.nf} excluída.`)
+    await reload()
   }
 
   const clearAll = async () => {
@@ -148,14 +191,15 @@ export default function App() {
   }
 
   if (!authReady) return <div className="center-screen">Carregando…</div>
-  if (!user) return <Login onLocalLogin={localLogin} />
+  if (!loggedIn) return <Login initialName={nome} onLogin={login} />
   if (allowed === false)
     return (
       <div className="center-screen">
         <div className="card narrow">
           <h2>Acesso não autorizado</h2>
           <p>
-            O e-mail <b>{user.email}</b> não está na lista de usuários permitidos.
+            O usuário de acesso <b>{SHARED_EMAIL}</b> não está na tabela <code>usuarios_permitidos</code>. Rode o
+            script <code>supabase/migracao-senha-geral.sql</code> no SQL Editor do Supabase.
           </p>
           {error && <p className="error">{error}</p>}
           <button className="btn" onClick={logout}>
@@ -169,7 +213,14 @@ export default function App() {
 
   return (
     <div className="layout">
-      <Sidebar rows={filtered} view={view} onSelect={setView} user={user} onLogout={logout} />
+      <Sidebar
+        rows={filtered}
+        view={view}
+        onSelect={setView}
+        nome={nome}
+        onLogout={logout}
+        onChangePassword={isLocalMode ? null : () => setPasswordOpen(true)}
+      />
       <main className="main">
         <header className="topbar">
           <div className="title">
@@ -199,8 +250,11 @@ export default function App() {
             <button className="btn ghost" onClick={reload} disabled={loading} title="Recarregar dados">
               {loading ? 'Carregando…' : '↻ Atualizar'}
             </button>
-            <button className="btn primary" onClick={() => setImportOpen(true)}>
+            <button className="btn ghost" onClick={() => setImportOpen(true)}>
               ⬆ Importar CSV
+            </button>
+            <button className="btn primary" onClick={() => setForm({})}>
+              + Nova NF
             </button>
           </div>
         </header>
@@ -212,7 +266,7 @@ export default function App() {
         )}
 
         {siloRows ? (
-          <SiloView silo={view} rows={siloRows} onSetStatus={setStatus} />
+          <SiloView silo={view} rows={siloRows} onSetStatus={setStatus} onEdit={(row) => setForm({ row })} />
         ) : (
           <Overview rows={filtered} onSelect={setView} />
         )}
@@ -227,6 +281,18 @@ export default function App() {
           onDone={setToast}
           totalRows={rows.length}
         />
+      )}
+      {form && (
+        <NfForm
+          row={form.row}
+          defaultSilo={SILOS.includes(view) ? view : '1'}
+          onClose={() => setForm(null)}
+          onSave={(data) => saveNf(data, form.row)}
+          onDelete={deleteNf}
+        />
+      )}
+      {passwordOpen && (
+        <PasswordDialog onClose={() => setPasswordOpen(false)} onSave={auth.changePassword} onDone={setToast} />
       )}
       {toast && <div className="toast">{toast}</div>}
     </div>

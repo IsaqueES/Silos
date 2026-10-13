@@ -54,6 +54,12 @@ const remote = {
       if (error) throw error
     }
   },
+  async remove(ids) {
+    for (const part of chunks(ids)) {
+      const { error } = await supabase.from('nfs').delete().in('id', part)
+      if (error) throw error
+    }
+  },
   async clear() {
     const { error } = await supabase.from('nfs').delete().gte('id', 0)
     if (error) throw error
@@ -96,6 +102,10 @@ const local = {
     const set = new Set(ids)
     save(load().map((r) => (set.has(r.id) ? { ...r, ...patch } : r)))
   },
+  async remove(ids) {
+    const set = new Set(ids)
+    save(load().filter((r) => !set.has(r.id)))
+  },
   async clear() {
     save([])
   },
@@ -105,3 +115,37 @@ const local = {
 }
 
 export const store = isLocalMode ? local : remote
+
+// Todos entram com o mesmo usuário do Supabase; a "senha geral" é a senha dele.
+export const SHARED_EMAIL = (import.meta.env.VITE_LOGIN_EMAIL || 'acesso@silos.app').trim()
+
+export const auth = {
+  async getSession() {
+    if (isLocalMode) return sessionStorage.getItem('silos:local-login') ? { local: true } : null
+    const { data } = await supabase.auth.getSession()
+    return data.session
+  },
+  onChange(cb) {
+    if (isLocalMode) return () => {}
+    const { data } = supabase.auth.onAuthStateChange((_e, session) => cb(session))
+    return () => data.subscription.unsubscribe()
+  },
+  async login(password) {
+    if (isLocalMode) {
+      sessionStorage.setItem('silos:local-login', '1')
+      return { local: true }
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email: SHARED_EMAIL, password })
+    if (error) throw new Error(/invalid login credentials/i.test(error.message) ? 'Senha incorreta.' : error.message)
+    return data.session
+  },
+  async logout() {
+    if (isLocalMode) sessionStorage.removeItem('silos:local-login')
+    else await supabase.auth.signOut()
+  },
+  async changePassword(password) {
+    if (isLocalMode) return
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+  },
+}

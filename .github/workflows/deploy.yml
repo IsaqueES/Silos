@@ -38,7 +38,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
-          VITE_LOGIN_MICROSOFT: ${{ secrets.VITE_LOGIN_MICROSOFT || vars.VITE_LOGIN_MICROSOFT }}
+          VITE_LOGIN_EMAIL: ${{ secrets.VITE_LOGIN_EMAIL || vars.VITE_LOGIN_EMAIL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

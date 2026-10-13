@@ -7,7 +7,8 @@ Site para acompanhar as NFs dos romaneios por silo (1 a 9): quais já foram lan�
 - Filtro por período (de/até, pela coluna DTV), busca e filtro por status
 - Clique em uma NF para marcá-la como **OK** (ou desfazer)
 - Importação de CSV para marcar várias NFs como concluídas de uma vez
-- Login por link/código enviado ao e-mail (via Supabase) e lista de e-mails autorizados
+- Login com **nome + senha geral** (a senha fica no Supabase e pode ser trocada pelo próprio site)
+- Inclusão, edição e exclusão de NFs direto pelo site, com **Adicionado por** e **Lançado por**
 - Exportação da lista filtrada em CSV
 
 ## Como funciona
@@ -49,31 +50,22 @@ Usa **Supabase** (banco + login, plano free) e **GitHub Pages** (hospedagem, fre
 
 ### 1. Supabase (banco de dados)
 1. Crie uma conta em <https://supabase.com> e um projeto novo.
-2. Em **SQL Editor**, cole o conteúdo de [`supabase/schema.sql`](supabase/schema.sql), **troque o e-mail no final pelo(s) e-mail(s) Microsoft autorizados** e clique em *Run*.
-   - Para liberar alguém depois: `insert into usuarios_permitidos (email) values ('fulano@empresa.com.br');`
-3. Em **Project Settings > API**, copie a **Project URL** e a chave **anon public**.
+2. Em **SQL Editor**, cole o conteúdo de [`supabase/schema.sql`](supabase/schema.sql) e clique em *Run*. (Se o banco já existia de uma versão anterior, rode só [`supabase/migracao-senha-geral.sql`](supabase/migracao-senha-geral.sql).)
+3. Em **Project Settings > API**, copie a **Project URL** (só `https://xxxx.supabase.co`) e a chave **anon public**.
 
-### 2. Login por e-mail
-A pessoa digita o e-mail, recebe um **link de acesso** e clica nele para entrar. Só quem está em `usuarios_permitidos` vê os dados.
+### 2. Senha geral
+Todo mundo entra com o **próprio nome** e a **mesma senha**. O nome é o que aparece em *Adicionado por* e *Lançado por*.
 
-1. **Authentication > URL Configuration**: em *Site URL* e *Redirect URLs* coloque `https://SEU-USUARIO.github.io/Silos/` (e `http://localhost:5173/` para testar local).
-2. **Envio de e-mails:** o servidor de e-mail padrão do Supabase só envia para e-mails que são membros da sua organização no Supabase, e no máximo poucos e-mails por hora. Em *Organization Settings > Team > Invite*, convide o e-mail de cada usuário do site e aceite o convite.
-3. Abra o site, digite o e-mail e clique no link que chegar. A sessão fica salva no navegador, então só é preciso entrar de novo depois de clicar em *Sair* ou trocar de navegador.
+A senha fica guardada no Supabase (nunca no código do site), como a senha de um usuário compartilhado:
 
-**Se o link chegar "expirado/inválido"** (o antivírus do e-mail corporativo às vezes abre o link antes de você) ou se mais pessoas forem usar o site, configure um SMTP próprio em *Authentication > Emails > SMTP Settings*. Com ele você pode editar o template **Magic link or OTP** e colocar o código no e-mail; o site já aceita o código:
-```html
-<h2>Controle de Silos</h2>
-<p>Seu código de acesso é: <b style="font-size:24px">{{ .Token }}</b></p>
-```
-Opções grátis de SMTP: Gmail (com *senha de app*), Brevo ou Resend.
+1. **Authentication > Users > Add user > Create new user**
+   - E-mail: `acesso@silos.app`
+   - Senha: a senha geral que você quiser
+   - Marque **Auto Confirm User**
+2. **SQL Editor**: rode [`supabase/migracao-senha-geral.sql`](supabase/migracao-senha-geral.sql) (adiciona as colunas novas e libera esse usuário).
+3. **Authentication > Sign In / Providers > Email**: deixe o provedor *Email* ligado. Recomendo **desligar "Allow new users to sign up"**, para ninguém criar contas.
 
-<details>
-<summary>Opcional: login com Microsoft (precisa de permissão no Azure/Entra ID)</summary>
-
-1. No Azure: **Registros de aplicativo > Novo registro**, URI de redirecionamento (Web) `https://SEU-PROJETO.supabase.co/auth/v1/callback`. Crie um segredo do cliente.
-2. No Supabase: **Authentication > Sign In / Providers > Azure** → cole o Client ID, o Secret e o Tenant URL.
-3. No GitHub, crie a variável/secret `VITE_LOGIN_MICROSOFT` = `true` para o botão aparecer.
-</details>
+**Trocar a senha:** no site, clique em *Alterar senha* (embaixo, na barra lateral). Ou no Supabase: *Authentication > Users* > `acesso@silos.app` > *Reset password / Update password*. Quem já está conectado continua conectado; a senha nova é pedida nos próximos logins.
 
 ### 3. GitHub Pages (hospedagem)
 1. No repositório: **Settings > Secrets and variables > Actions > New repository secret**, crie:
@@ -83,7 +75,7 @@ Opções grátis de SMTP: Gmail (com *senha de app*), Brevo ou Resend.
 3. Faça merge na branch `main` (ou rode o workflow manualmente em **Actions > Deploy no GitHub Pages > Run workflow**).
 4. O site fica em `https://SEU-USUARIO.github.io/Silos/`.
 
-> A chave *anon* pode ficar no site público: quem protege os dados são as regras de segurança (RLS) do `schema.sql`, que só deixam ler/alterar os e-mails da tabela `usuarios_permitidos`.
+> A chave *anon* pode ficar no site público: quem protege os dados são as regras de segurança (RLS) do `schema.sql`, que só deixam ler/alterar quem entrou com a senha geral (usuário `acesso@silos.app`, listado em `usuarios_permitidos`).
 
 Para testar local com o Supabase, copie `.env.example` para `.env.local` e preencha.
 

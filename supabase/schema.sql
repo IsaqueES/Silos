@@ -13,7 +13,9 @@ create table if not exists public.nfs (
   dtv_date      date,
   concluida     boolean not null default false,
   concluida_em  timestamptz,
-  concluida_por text,
+  concluida_por text,               -- (antigo) e-mail de quem marcou
+  adicionado_por text,              -- nome de quem incluiu a NF
+  lancado_por   text,               -- nome de quem marcou como lançada no SAP
   origem        text,               -- 'csv' ou 'manual'
   criado_em     timestamptz not null default now(),
   unique (nf, silo, lote, material)
@@ -49,7 +51,6 @@ create policy nfs_insert on public.nfs for insert to authenticated with check (p
 create policy nfs_update on public.nfs for update to authenticated using (public.usuario_permitido()) with check (public.usuario_permitido());
 create policy nfs_delete on public.nfs for delete to authenticated using (public.usuario_permitido());
 
--- >>> Troque pelos e-mails Microsoft de quem pode acessar <<<
-insert into public.usuarios_permitidos (email) values
-  ('seu.email@empresa.com.br')
+-- Usuário compartilhado da senha geral (crie-o em Authentication > Users > Add user)
+insert into public.usuarios_permitidos (email) values ('acesso@silos.app')
 on conflict do nothing;
