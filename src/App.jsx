@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { auth, isLocalMode, SHARED_EMAIL, store } from './lib/store.js'
 import Login from './components/Login.jsx'
 import Sidebar from './components/Sidebar.jsx'
@@ -6,11 +6,11 @@ import Overview from './components/Overview.jsx'
 import SiloView from './components/SiloView.jsx'
 import ImportDialog from './components/ImportDialog.jsx'
 import NfForm from './components/NfForm.jsx'
-import PasswordDialog from './components/PasswordDialog.jsx'
 import { SILOS } from './lib/stats.js'
 import { rowKey } from './lib/csv.js'
 
 const NAME_KEY = 'silos:nome'
+const SESSAO_ENCERRADA = 'A senha geral foi alterada. Entre novamente com a nova senha.'
 const readName = () => {
   try {
     return localStorage.getItem(NAME_KEY) || ''
@@ -33,16 +33,33 @@ export default function App() {
   const [dateTo, setDateTo] = useState('')
   const [importOpen, setImportOpen] = useState(false)
   const [form, setForm] = useState(null) // null | { row?: linha sendo editada }
-  const [passwordOpen, setPasswordOpen] = useState(false)
+  const [notice, setNotice] = useState('') // aviso na tela de login (ex.: senha alterada)
+  const wasAllowed = useRef(false)
+  const loggingOut = useRef(false)
 
   // ---- autenticação: nome de cada um + senha geral ----
+  const logout = useCallback(async (message = '') => {
+    loggingOut.current = true
+    await auth.logout()
+    loggingOut.current = false
+    wasAllowed.current = false
+    setNotice(message)
+    setSession(null)
+    setAllowed(null)
+    setRows([])
+  }, [])
+
   useEffect(() => {
     auth.getSession().then((sess) => {
       setSession(sess)
       setAuthReady(true)
     })
-    return auth.onChange(setSession)
-  }, [])
+    return auth.onChange((sess, event) => {
+      // Sessão encerrada pelo servidor (ex.: senha geral trocada) sem o usuário clicar em Sair
+      if (event === 'SIGNED_OUT' && !loggingOut.current && wasAllowed.current) logout(SESSAO_ENCERRADA)
+      else setSession(sess)
+    })
+  }, [logout])
 
   const login = async (name, password) => {
     const sess = await auth.login(password)
@@ -51,15 +68,9 @@ export default function App() {
     } catch {
       /* sem localStorage: o nome vale só nesta aba */
     }
+    setNotice('')
     setNome(name)
     setSession(sess)
-  }
-
-  const logout = async () => {
-    await auth.logout()
-    setSession(null)
-    setAllowed(null)
-    setRows([])
   }
 
   const loggedIn = !!session && !!nome
@@ -83,6 +94,7 @@ export default function App() {
       .isAllowed()
       .then((ok) => {
         setAllowed(ok)
+        wasAllowed.current = ok
         if (ok) reload()
       })
       .catch((e) => {
@@ -90,6 +102,26 @@ export default function App() {
         setError(e.message)
       })
   }, [loggedIn, reload])
+
+  // Confere a cada minuto (e ao voltar para a aba) se a sessão ainda vale.
+  // Quando a senha geral é trocada no Supabase, todas as sessões são encerradas e cada um volta ao login.
+  useEffect(() => {
+    if (!loggedIn || isLocalMode || !allowed) return
+    const check = () =>
+      store
+        .isAllowed()
+        .then((ok) => {
+          if (!ok) logout(SESSAO_ENCERRADA)
+        })
+        .catch(() => {}) // sem internet: tenta de novo depois
+    const onVisible = () => document.visibilityState === 'visible' && check()
+    const timer = setInterval(check, 60_000)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [loggedIn, allowed, logout])
 
   useEffect(() => {
     // Não mexe no hash enquanto o Supabase ainda lê o token do link de login (#access_token=...)
@@ -191,7 +223,7 @@ export default function App() {
   }
 
   if (!authReady) return <div className="center-screen">Carregando…</div>
-  if (!loggedIn) return <Login initialName={nome} onLogin={login} />
+  if (!loggedIn) return <Login initialName={nome} notice={notice} onLogin={login} />
   if (allowed === false)
     return (
       <div className="center-screen">
@@ -202,7 +234,7 @@ export default function App() {
             script <code>supabase/migracao-senha-geral.sql</code> no SQL Editor do Supabase.
           </p>
           {error && <p className="error">{error}</p>}
-          <button className="btn" onClick={logout}>
+          <button className="btn" onClick={() => logout()}>
             Sair
           </button>
         </div>
@@ -218,8 +250,7 @@ export default function App() {
         view={view}
         onSelect={setView}
         nome={nome}
-        onLogout={logout}
-        onChangePassword={isLocalMode ? null : () => setPasswordOpen(true)}
+        onLogout={() => logout()}
       />
       <main className="main">
         <header className="topbar">
@@ -290,9 +321,6 @@ export default function App() {
           onSave={(data) => saveNf(data, form.row)}
           onDelete={deleteNf}
         />
-      )}
-      {passwordOpen && (
-        <PasswordDialog onClose={() => setPasswordOpen(false)} onSave={auth.changePassword} onDone={setToast} />
       )}
       {toast && <div className="toast">{toast}</div>}
     </div>

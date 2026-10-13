@@ -1,6 +1,6 @@
 import { SILOS, stats } from '../lib/stats.js'
 
-export default function Sidebar({ rows, view, onSelect, nome, onLogout, onChangePassword }) {
+export default function Sidebar({ rows, view, onSelect, nome, onLogout }) {
   const all = stats(rows)
   return (
     <aside className="sidebar">
@@ -39,16 +39,9 @@ export default function Sidebar({ rows, view, onSelect, nome, onLogout, onChange
           <div className="user-email" title={nome}>
             {nome}
           </div>
-          <div className="side-actions">
-            {onChangePassword && (
-              <button className="link" onClick={onChangePassword}>
-                Alterar senha
-              </button>
-            )}
-            <button className="link" onClick={onLogout}>
-              Sair
-            </button>
-          </div>
+          <button className="link" onClick={onLogout}>
+            Sair
+          </button>
         </div>
       </div>
     </aside>

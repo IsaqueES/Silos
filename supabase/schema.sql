@@ -28,15 +28,21 @@ create table if not exists public.usuarios_permitidos (
   email text primary key
 );
 
+-- Libera quem entrou com a senha geral E cuja sessão ainda existe
+-- (trocar-senha.sql apaga as sessões, desconectando todo mundo).
 create or replace function public.usuario_permitido()
 returns boolean
 language sql stable security definer
 set search_path = public
 as $$
   select exists (
-    select 1 from public.usuarios_permitidos
-    where lower(email) = lower(auth.jwt() ->> 'email')
-  );
+           select 1 from public.usuarios_permitidos
+           where lower(email) = lower(auth.jwt() ->> 'email')
+         )
+     and exists (
+           select 1 from auth.sessions
+           where id = nullif(auth.jwt() ->> 'session_id', '')::uuid
+         );
 $$;
 
 alter table public.nfs                 enable row level security;
@@ -46,10 +52,10 @@ drop policy if exists nfs_select on public.nfs;
 drop policy if exists nfs_insert on public.nfs;
 drop policy if exists nfs_update on public.nfs;
 drop policy if exists nfs_delete on public.nfs;
-create policy nfs_select on public.nfs for select to authenticated using (public.usuario_permitido());
-create policy nfs_insert on public.nfs for insert to authenticated with check (public.usuario_permitido());
-create policy nfs_update on public.nfs for update to authenticated using (public.usuario_permitido()) with check (public.usuario_permitido());
-create policy nfs_delete on public.nfs for delete to authenticated using (public.usuario_permitido());
+create policy nfs_select on public.nfs for select to authenticated using ((select public.usuario_permitido()));
+create policy nfs_insert on public.nfs for insert to authenticated with check ((select public.usuario_permitido()));
+create policy nfs_update on public.nfs for update to authenticated using ((select public.usuario_permitido())) with check ((select public.usuario_permitido()));
+create policy nfs_delete on public.nfs for delete to authenticated using ((select public.usuario_permitido()));
 
 -- Usuário compartilhado da senha geral (crie-o em Authentication > Users > Add user)
 insert into public.usuarios_permitidos (email) values ('acesso@silos.app')
