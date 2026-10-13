@@ -7,7 +7,7 @@ Site para acompanhar as NFs dos romaneios por silo (1 a 9): quais já foram lan�
 - Filtro por período (de/até, pela coluna DTV), busca e filtro por status
 - Clique em uma NF para marcá-la como **OK** (ou desfazer)
 - Importação de CSV para marcar várias NFs como concluídas de uma vez
-- Login com **nome + senha geral** (a senha fica no Supabase e pode ser trocada pelo próprio site)
+- Login com **nome + senha geral** (a senha fica no Supabase; só o dono do Supabase troca, e isso desconecta todo mundo)
 - Inclusão, edição e exclusão de NFs direto pelo site, com **Adicionado por** e **Lançado por**
 - Exportação da lista filtrada em CSV
 
@@ -62,10 +62,12 @@ A senha fica guardada no Supabase (nunca no código do site), como a senha de um
    - E-mail: `acesso@silos.app`
    - Senha: a senha geral que você quiser
    - Marque **Auto Confirm User**
-2. **SQL Editor**: rode [`supabase/migracao-senha-geral.sql`](supabase/migracao-senha-geral.sql) (adiciona as colunas novas e libera esse usuário).
+2. **SQL Editor**: rode [`supabase/migracao-senha-geral.sql`](supabase/migracao-senha-geral.sql) e depois [`supabase/migracao-sessoes.sql`](supabase/migracao-sessoes.sql) (quem instalou do zero com o `schema.sql` atual não precisa).
 3. **Authentication > Sign In / Providers > Email**: deixe o provedor *Email* ligado. Recomendo **desligar "Allow new users to sign up"**, para ninguém criar contas.
 
-**Trocar a senha:** no site, clique em *Alterar senha* (embaixo, na barra lateral). Ou no Supabase: *Authentication > Users* > `acesso@silos.app` > *Reset password / Update password*. Quem já está conectado continua conectado; a senha nova é pedida nos próximos logins.
+O site lembra o último nome usado em cada navegador ("Entrando como **Fulano**"), então a pessoa só digita a senha. Nomes são padronizados (`isaque` → `Isaque`).
+
+**Trocar a senha (só você, pelo Supabase):** abra [`supabase/trocar-senha.sql`](supabase/trocar-senha.sql), troque `NOVA_SENHA` pela senha nova e rode no **SQL Editor**. Isso troca a senha **e desconecta todo mundo**: quem estiver com o site aberto volta para a tela de login em até 1 minuto, com o aviso "A senha geral foi alterada".
 
 ### 3. GitHub Pages (hospedagem)
 1. No repositório: **Settings > Secrets and variables > Actions > New repository secret**, crie:

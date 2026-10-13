@@ -127,7 +127,7 @@ export const auth = {
   },
   onChange(cb) {
     if (isLocalMode) return () => {}
-    const { data } = supabase.auth.onAuthStateChange((_e, session) => cb(session))
+    const { data } = supabase.auth.onAuthStateChange((event, session) => cb(session, event))
     return () => data.subscription.unsubscribe()
   },
   async login(password) {
@@ -139,13 +139,9 @@ export const auth = {
     if (error) throw new Error(/invalid login credentials/i.test(error.message) ? 'Senha incorreta.' : error.message)
     return data.session
   },
+  // scope 'local': só limpa este navegador (a sessão pode já ter sido encerrada no servidor)
   async logout() {
     if (isLocalMode) sessionStorage.removeItem('silos:local-login')
-    else await supabase.auth.signOut()
-  },
-  async changePassword(password) {
-    if (isLocalMode) return
-    const { error } = await supabase.auth.updateUser({ password })
-    if (error) throw error
+    else await supabase.auth.signOut({ scope: 'local' })
   },
 }
