@@ -138,17 +138,37 @@ export default function SiloView({ silo, rows, onSetStatus, onEdit }) {
               <tr
                 key={r.id}
                 className={r.concluida ? 'done' : ''}
-                onClick={() => onSetStatus([r.id], !r.concluida)}
-                title={
-                  r.concluida
-                    ? `Lançada${r.lancado_por || r.concluida_por ? ' por ' + (r.lancado_por || r.concluida_por) : ''}${
-                        r.concluida_em ? ' em ' + new Date(r.concluida_em).toLocaleString('pt-BR') : ''
-                      }${r.origem === 'csv' ? ' (via CSV)' : ''} — clique para desfazer`
-                    : 'Clique para marcar como OK (já lançada)'
-                }
               >
                 <td>
-                  <span className={`pill ${r.concluida ? 'ok' : 'pend'}`}>{r.concluida ? '✓ OK' : 'Pendente'}</span>
+                  <div className="status-cell">
+                    <span
+                      className={`pill ${r.concluida ? 'ok' : 'pend'}`}
+                      title={
+                        r.concluida
+                          ? `Lançada${r.lancado_por || r.concluida_por ? ' por ' + (r.lancado_por || r.concluida_por) : ''}${
+                              r.concluida_em ? ' em ' + new Date(r.concluida_em).toLocaleString('pt-BR') : ''
+                            }${r.origem === 'csv' ? ' (via CSV)' : ''}`
+                          : 'Ainda não lançada no SAP'
+                      }
+                    >
+                      {r.concluida ? '✓ OK' : 'Pendente'}
+                    </span>
+                    {r.concluida ? (
+                      <button
+                        className="undo-btn"
+                        title="Voltar para pendente"
+                        onClick={() => {
+                          if (confirm(`Voltar a NF ${r.nf} para pendente?`)) onSetStatus([r.id], false)
+                        }}
+                      >
+                        Desfazer
+                      </button>
+                    ) : (
+                      <button className="done-btn" title="Marcar como lançada no SAP" onClick={() => onSetStatus([r.id], true)}>
+                        ✓ Concluir
+                      </button>
+                    )}
+                  </div>
                 </td>
                 <td className="mono strong">{r.nf}</td>
                 <td className="num mono">{r.nor}</td>
@@ -163,10 +183,7 @@ export default function SiloView({ silo, rows, onSetStatus, onEdit }) {
                   <button
                     className="row-btn"
                     title="Editar ou excluir"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onEdit(r)
-                    }}
+                    onClick={() => onEdit(r)}
                   >
                     ✎
                   </button>
@@ -177,7 +194,7 @@ export default function SiloView({ silo, rows, onSetStatus, onEdit }) {
         </table>
         {!visible.length && <div className="empty">Nenhum item para os filtros atuais.</div>}
       </div>
-      <p className="muted small-note">Clique em uma linha para alternar entre Pendente e OK · ✎ para editar ou excluir.</p>
+      <p className="muted small-note">Use ✓ Concluir para marcar uma NF como lançada · ✎ para editar ou excluir.</p>
     </div>
   )
 }
