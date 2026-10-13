@@ -1,7 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Aceita a URL com caminho extra (ex.: .../rest/v1/ ou .../auth/v1/callback): usa só a origem.
+function projectUrl(raw) {
+  const s = String(raw ?? '').trim()
+  if (!s) return ''
+  try {
+    return new URL(s.includes('://') ? s : `https://${s}`).origin
+  } catch {
+    return s
+  }
+}
+
+const url = projectUrl(import.meta.env.VITE_SUPABASE_URL)
+const key = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim()
 
 export const supabase = url && key ? createClient(url, key) : null
 export const isLocalMode = !supabase
