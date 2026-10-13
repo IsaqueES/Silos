@@ -122,10 +122,11 @@ export function parseCsv(text) {
 }
 
 export function toCsv(rows) {
-  const header = ['NF', 'NOR', 'QTD', 'DEP', 'SILO', 'LOTE', 'MATERIAL', 'DTV', 'STATUS']
+  const header = ['NF', 'NOR', 'QTD', 'DEP', 'SILO', 'LOTE', 'MATERIAL', 'DTV', 'STATUS', 'ADICIONADO POR', 'LANCADO POR']
   const fmt = (n) => (n == null ? '' : String(n).replace('.', ','))
   const lines = rows.map((r) =>
-    [r.nf, fmt(r.nor), fmt(r.qtd), r.dep, r.silo, r.lote, r.material, r.dtv, r.concluida ? 'OK' : 'PENDENTE'].join(';'),
+    [r.nf, fmt(r.nor), fmt(r.qtd), r.dep, r.silo, r.lote, r.material, r.dtv, r.concluida ? 'OK' : 'PENDENTE', r.adicionado_por ?? '',
+      r.concluida ? (r.lancado_por ?? r.concluida_por ?? '') : ''].join(';'),
   )
   return '﻿' + [header.join(';'), ...lines].join('\r\n')
 }

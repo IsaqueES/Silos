@@ -1,6 +1,6 @@
 import { SILOS, stats } from '../lib/stats.js'
 
-export default function Sidebar({ rows, view, onSelect, user, onLogout }) {
+export default function Sidebar({ rows, view, onSelect, nome, onLogout, onChangePassword }) {
   const all = stats(rows)
   return (
     <aside className="sidebar">
@@ -34,14 +34,21 @@ export default function Sidebar({ rows, view, onSelect, user, onLogout }) {
         })}
       </nav>
       <div className="user">
-        <div className="avatar">{(user.email || '?')[0].toUpperCase()}</div>
+        <div className="avatar">{(nome || '?')[0].toUpperCase()}</div>
         <div className="user-info">
-          <div className="user-email" title={user.email}>
-            {user.email}
+          <div className="user-email" title={nome}>
+            {nome}
           </div>
-          <button className="link" onClick={onLogout}>
-            Sair
-          </button>
+          <div className="side-actions">
+            {onChangePassword && (
+              <button className="link" onClick={onChangePassword}>
+                Alterar senha
+              </button>
+            )}
+            <button className="link" onClick={onLogout}>
+              Sair
+            </button>
+          </div>
         </div>
       </div>
     </aside>

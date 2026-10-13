@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { fmtNum, stats } from '../lib/stats.js'
 import { toCsv } from '../lib/csv.js'
 
-export default function SiloView({ silo, rows, onSetStatus }) {
+export default function SiloView({ silo, rows, onSetStatus, onEdit }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('todas')
   const [sort, setSort] = useState({ col: 'dtv_date', dir: 1 })
@@ -15,7 +15,7 @@ export default function SiloView({ silo, rows, onSetStatus }) {
       if (status === 'pendentes' && r.concluida) return false
       if (status === 'concluidas' && !r.concluida) return false
       if (!q) return true
-      return [r.nf, r.lote, r.material, r.dep, r.nor].some((v) => String(v ?? '').toLowerCase().includes(q))
+      return [r.nf, r.lote, r.material, r.dep, r.nor, r.adicionado_por, r.lancado_por].some((v) => String(v ?? '').toLowerCase().includes(q))
     })
     const { col, dir } = sort
     return list.sort((a, b) => {
@@ -128,6 +128,9 @@ export default function SiloView({ silo, rows, onSetStatus }) {
               <Th col="lote">LOTE</Th>
               <Th col="material">MATERIAL</Th>
               <Th col="dtv_date">DTV</Th>
+              <Th col="adicionado_por">Adicionado por</Th>
+              <Th col="lancado_por">Lançado por</Th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -138,7 +141,7 @@ export default function SiloView({ silo, rows, onSetStatus }) {
                 onClick={() => onSetStatus([r.id], !r.concluida)}
                 title={
                   r.concluida
-                    ? `Concluída${r.concluida_por ? ' por ' + r.concluida_por : ''}${
+                    ? `Lançada${r.lancado_por || r.concluida_por ? ' por ' + (r.lancado_por || r.concluida_por) : ''}${
                         r.concluida_em ? ' em ' + new Date(r.concluida_em).toLocaleString('pt-BR') : ''
                       }${r.origem === 'csv' ? ' (via CSV)' : ''} — clique para desfazer`
                     : 'Clique para marcar como OK (já lançada)'
@@ -154,13 +157,27 @@ export default function SiloView({ silo, rows, onSetStatus }) {
                 <td className="mono">{r.lote}</td>
                 <td className="mono">{r.material}</td>
                 <td>{r.dtv}</td>
+                <td className="who">{r.adicionado_por}</td>
+                <td className="who">{r.concluida ? r.lancado_por || r.concluida_por : ''}</td>
+                <td>
+                  <button
+                    className="row-btn"
+                    title="Editar ou excluir"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEdit(r)
+                    }}
+                  >
+                    ✎
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
         {!visible.length && <div className="empty">Nenhum item para os filtros atuais.</div>}
       </div>
-      <p className="muted small-note">Clique em uma linha para alternar entre Pendente e OK.</p>
+      <p className="muted small-note">Clique em uma linha para alternar entre Pendente e OK · ✎ para editar ou excluir.</p>
     </div>
   )
 }
