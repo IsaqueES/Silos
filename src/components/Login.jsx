@@ -73,13 +73,14 @@ export default function Login({ onLocalLogin }) {
               />
             </label>
             <button className="btn ms" disabled={busy || !email}>
-              {busy ? 'Enviando…' : 'Enviar código de acesso'}
+              {busy ? 'Enviando…' : 'Enviar link de acesso'}
             </button>
           </form>
         ) : (
           <form className="login-form" onSubmit={verify}>
             <p className="hint">
-              Enviamos um código para <b>{email}</b>. Confira a caixa de entrada (e o lixo eletrônico).
+              Enviamos um e-mail para <b>{email}</b>. <b>Clique no link</b> do e-mail ou, se ele trouxer um código,
+              digite abaixo. Confira também o lixo eletrônico.
             </p>
             <label>
               Código

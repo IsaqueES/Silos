@@ -18,7 +18,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
-  const [view, setView] = useState(() => window.location.hash.replace('#silo-', '') || 'geral')
+  const [view, setView] = useState(() => window.location.hash.match(/^#silo-([1-9])$/)?.[1] || 'geral')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [importOpen, setImportOpen] = useState(false)
@@ -79,7 +79,10 @@ export default function App() {
   }, [user, reload])
 
   useEffect(() => {
-    window.location.hash = view === 'geral' ? '' : `silo-${view}`
+    // Não mexe no hash enquanto o Supabase ainda lê o token do link de login (#access_token=...)
+    if (/access_token|error_description/.test(window.location.hash)) return
+    const hash = view === 'geral' ? '' : `#silo-${view}`
+    history.replaceState(null, '', window.location.pathname + window.location.search + hash)
   }, [view])
 
   useEffect(() => {

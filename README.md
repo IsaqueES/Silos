@@ -7,7 +7,7 @@ Site para acompanhar as NFs dos romaneios por silo (1 a 9): quais já foram lan�
 - Filtro por período (de/até, pela coluna DTV), busca e filtro por status
 - Clique em uma NF para marcá-la como **OK** (ou desfazer)
 - Importação de CSV para marcar várias NFs como concluídas de uma vez
-- Login por código enviado ao e-mail (via Supabase) e lista de e-mails autorizados
+- Login por link/código enviado ao e-mail (via Supabase) e lista de e-mails autorizados
 - Exportação da lista filtrada em CSV
 
 ## Como funciona
@@ -53,21 +53,19 @@ Usa **Supabase** (banco + login, plano free) e **GitHub Pages** (hospedagem, fre
    - Para liberar alguém depois: `insert into usuarios_permitidos (email) values ('fulano@empresa.com.br');`
 3. Em **Project Settings > API**, copie a **Project URL** e a chave **anon public**.
 
-### 2. Login por código no e-mail
-A pessoa digita o e-mail, recebe um código de 6 dígitos e entra. Só quem está em `usuarios_permitidos` vê os dados.
+### 2. Login por e-mail
+A pessoa digita o e-mail, recebe um **link de acesso** e clica nele para entrar. Só quem está em `usuarios_permitidos` vê os dados.
 
-1. **Authentication > Emails > Templates > Magic Link**: troque o corpo do e-mail por algo que mostre o código, por exemplo:
-   ```html
-   <h2>Controle de Silos</h2>
-   <p>Seu código de acesso é: <b style="font-size:24px">{{ .Token }}</b></p>
-   ```
-   (Usar código em vez de link evita que o antivírus do e-mail corporativo "clique" no link e o invalide.)
-2. **Authentication > URL Configuration**: em *Site URL* e *Redirect URLs* coloque `https://SEU-USUARIO.github.io/Silos/` (e `http://localhost:5173/` para testar local).
-3. **Envio de e-mails:** o servidor de e-mail padrão do Supabase só envia para e-mails que são membros da sua organização no Supabase, e no máximo poucos e-mails por hora. Escolha uma opção:
-   - **Mais simples:** em *Organization Settings > Team > Invite*, convide o e-mail de cada usuário do site e aceite o convite.
-   - **Para mais usuários:** configure um SMTP próprio em *Authentication > Emails > SMTP Settings* (ex.: Resend ou Brevo, ambos com plano grátis).
+1. **Authentication > URL Configuration**: em *Site URL* e *Redirect URLs* coloque `https://SEU-USUARIO.github.io/Silos/` (e `http://localhost:5173/` para testar local).
+2. **Envio de e-mails:** o servidor de e-mail padrão do Supabase só envia para e-mails que são membros da sua organização no Supabase, e no máximo poucos e-mails por hora. Em *Organization Settings > Team > Invite*, convide o e-mail de cada usuário do site e aceite o convite.
+3. Abra o site, digite o e-mail e clique no link que chegar. A sessão fica salva no navegador, então só é preciso entrar de novo depois de clicar em *Sair* ou trocar de navegador.
 
-A sessão fica salva no navegador, então o código só é pedido de novo quando você clicar em *Sair* ou trocar de navegador.
+**Se o link chegar "expirado/inválido"** (o antivírus do e-mail corporativo às vezes abre o link antes de você) ou se mais pessoas forem usar o site, configure um SMTP próprio em *Authentication > Emails > SMTP Settings*. Com ele você pode editar o template **Magic link or OTP** e colocar o código no e-mail; o site já aceita o código:
+```html
+<h2>Controle de Silos</h2>
+<p>Seu código de acesso é: <b style="font-size:24px">{{ .Token }}</b></p>
+```
+Opções grátis de SMTP: Gmail (com *senha de app*), Brevo ou Resend.
 
 <details>
 <summary>Opcional: login com Microsoft (precisa de permissão no Azure/Entra ID)</summary>
