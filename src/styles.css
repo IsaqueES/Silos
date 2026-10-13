@@ -167,3 +167,14 @@ tbody tr.done td.strong { text-decoration: line-through; text-decoration-color: 
   .topbar, .content { padding: 14px 16px; }
   .mode-pick { grid-template-columns: 1fr; }
 }
+
+/* ---------- login por código ---------- */
+.login-form { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.login-form label { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--muted); }
+.login-form input { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 1rem; color: var(--text); }
+.login-form input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+.code-input { letter-spacing: 0.4em; text-align: center; font-size: 1.4rem !important; font-family: ui-monospace, Consolas, monospace; }
+.link.dark { color: var(--muted); align-self: center; }
+.divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.8rem; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.login-card .btn.ghost { justify-content: center; }

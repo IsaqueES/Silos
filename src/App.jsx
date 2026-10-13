@@ -38,17 +38,9 @@ export default function App() {
     return () => sub.subscription.unsubscribe()
   }, [])
 
-  const login = async () => {
-    if (isLocalMode) {
-      sessionStorage.setItem('silos:local-login', '1')
-      setUser(LOCAL_USER)
-      return
-    }
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'azure',
-      options: { scopes: 'email', redirectTo: window.location.origin + window.location.pathname },
-    })
-    if (error) setError(error.message)
+  const localLogin = () => {
+    sessionStorage.setItem('silos:local-login', '1')
+    setUser(LOCAL_USER)
   }
 
   const logout = async () => {
@@ -153,7 +145,7 @@ export default function App() {
   }
 
   if (!authReady) return <div className="center-screen">Carregando…</div>
-  if (!user) return <Login onLogin={login} error={error} />
+  if (!user) return <Login onLocalLogin={localLogin} />
   if (allowed === false)
     return (
       <div className="center-screen">
