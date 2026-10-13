@@ -21,14 +21,24 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
+      - name: Conferir configuração do Supabase
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
+          KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "::warning::VITE_SUPABASE_URL e/ou VITE_SUPABASE_ANON_KEY não encontrados em Settings > Secrets and variables > Actions. O site será publicado em MODO LOCAL."
+          else
+            echo "Supabase configurado: $URL"
+          fi
       - run: npm run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_LOGIN_MICROSOFT: ${{ secrets.VITE_LOGIN_MICROSOFT }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_LOGIN_MICROSOFT: ${{ secrets.VITE_LOGIN_MICROSOFT || vars.VITE_LOGIN_MICROSOFT }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
