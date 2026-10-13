@@ -10,7 +10,11 @@ export default function Login({ onLocalLogin }) {
   const [code, setCode] = useState('')
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  // Erro devolvido pelo link do e-mail (ex.: link expirado) vem no hash da URL
+  const [error, setError] = useState(() => {
+    const desc = new URLSearchParams(window.location.hash.slice(1)).get('error_description')
+    return desc ? erroDoLink(desc) : ''
+  })
 
   const sendCode = async (e) => {
     e.preventDefault()
@@ -21,7 +25,7 @@ export default function Login({ onLocalLogin }) {
       options: { emailRedirectTo: redirectTo() },
     })
     setBusy(false)
-    if (error) setError(traduz(error.message))
+    if (error) setError(erroDoEnvio(error))
     else setSent(true)
   }
 
@@ -31,7 +35,7 @@ export default function Login({ onLocalLogin }) {
     setError('')
     const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' })
     setBusy(false)
-    if (error) setError(traduz(error.message))
+    if (error) setError(erroDoCodigo(error.message))
     // sucesso: o onAuthStateChange do App assume daqui
   }
 
@@ -126,10 +130,24 @@ export default function Login({ onLocalLogin }) {
   )
 }
 
-function traduz(msg) {
-  if (/rate limit|security purposes/i.test(msg)) return 'Muitas tentativas. Aguarde alguns minutos e tente de novo.'
+function erroDoEnvio(error) {
+  const msg = error.message || ''
+  if (/rate limit|security purposes/i.test(msg) || error.status === 429)
+    return 'Limite de e-mails atingido. Aguarde alguns minutos (o servidor grátis do Supabase envia poucos e-mails por hora).'
+  if (/not authorized|invalid/i.test(msg))
+    return `O Supabase recusou enviar para este e-mail: "${msg}". O servidor de e-mail padrão só envia para membros da organização no Supabase — veja o README.`
+  return `Não foi possível enviar o e-mail: ${msg}`
+}
+
+function erroDoCodigo(msg) {
   if (/expired|invalid/i.test(msg)) return 'Código inválido ou expirado. Peça um novo código.'
   return msg
+}
+
+function erroDoLink(desc) {
+  if (/expired|invalid/i.test(desc))
+    return 'O link de acesso é inválido ou expirou (às vezes o antivírus do e-mail abre o link antes de você). Peça um novo.'
+  return desc
 }
 
 function MicrosoftIcon() {
