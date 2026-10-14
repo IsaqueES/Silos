@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { fmtNum, stats } from '../lib/stats.js'
 import { toCsv } from '../lib/csv.js'
+import DangerZone from './DangerZone.jsx'
 
-export default function SiloView({ silo, rows, onSetStatus, onEdit, onClearSilo }) {
+export default function SiloView({ silo, label, rows, onSetStatus, onEdit, onClearSilo }) {
+  const invalid = silo === 'outros'
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('todas')
   const [sort, setSort] = useState({ col: 'dtv_date', dir: 1 })
@@ -85,6 +87,13 @@ export default function SiloView({ silo, rows, onSetStatus, onEdit, onClearSilo 
         </div>
       </div>
 
+      {invalid && (
+        <div className="alert warn static">
+          Estas NFs têm um SILO fora de 1–9 (provavelmente erro de digitação no CSV). Use <b>✎</b> para corrigir o silo
+          de cada uma, ou apague todas na zona de perigo abaixo.
+        </div>
+      )}
+
       <div className="filters">
         <input
           className="search"
@@ -117,6 +126,7 @@ export default function SiloView({ silo, rows, onSetStatus, onEdit, onClearSilo 
           <thead>
             <tr>
               <Th col="concluida">Status</Th>
+              {invalid && <Th col="silo">SILO</Th>}
               <Th col="nf">NF</Th>
               <Th col="nor" num>
                 NOR
@@ -170,6 +180,7 @@ export default function SiloView({ silo, rows, onSetStatus, onEdit, onClearSilo 
                     )}
                   </div>
                 </td>
+                {invalid && <td className="mono bad-silo">{r.silo || '(vazio)'}</td>}
                 <td className="mono strong">{r.nf}</td>
                 <td className="num mono">{r.nor}</td>
                 <td className="num">{fmtNum(r.qtd)}</td>
@@ -196,15 +207,11 @@ export default function SiloView({ silo, rows, onSetStatus, onEdit, onClearSilo 
       </div>
       <p className="muted small-note">Use ✓ Concluir para marcar uma NF como lançada · ✎ para editar ou excluir.</p>
 
-      <div className="danger-zone">
-        <div>
-          <b>Zona de perigo</b>
-          <div className="muted">Apaga todas as NFs do Silo {silo}, de todas as datas. Não dá para desfazer.</div>
-        </div>
-        <button className="btn danger-outline" onClick={onClearSilo}>
-          Excluir todos os dados deste silo
-        </button>
-      </div>
+      <DangerZone
+        text={`Apaga todas as ${label === `Silo ${silo}` ? `NFs do ${label}` : label}, de todas as datas. Não dá para desfazer.`}
+        button={invalid ? 'Excluir todas as NFs com silo inválido' : 'Excluir todos os dados deste silo'}
+        onClick={onClearSilo}
+      />
     </div>
   )
 }
