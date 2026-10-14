@@ -6,6 +6,7 @@ import Overview from './components/Overview.jsx'
 import SiloView from './components/SiloView.jsx'
 import ImportDialog from './components/ImportDialog.jsx'
 import NfForm from './components/NfForm.jsx'
+import ClearSiloDialog from './components/ClearSiloDialog.jsx'
 import { SILOS } from './lib/stats.js'
 import { rowKey } from './lib/csv.js'
 
@@ -33,6 +34,7 @@ export default function App() {
   const [dateTo, setDateTo] = useState('')
   const [importOpen, setImportOpen] = useState(false)
   const [form, setForm] = useState(null) // null | { row?: linha sendo editada }
+  const [clearSilo, setClearSilo] = useState(null) // silo com o diálogo de exclusão aberto
   const [notice, setNotice] = useState('') // aviso na tela de login (ex.: senha alterada)
   const wasAllowed = useRef(false)
   const loggingOut = useRef(false)
@@ -217,6 +219,13 @@ export default function App() {
     await reload()
   }
 
+  // Apaga todas as NFs do silo no banco (não só as que passam no filtro de datas)
+  const deleteSilo = async (silo) => {
+    await store.removeSilo(silo)
+    setToast(`Todos os dados do Silo ${silo} foram apagados.`)
+    await reload()
+  }
+
   const clearAll = async () => {
     await store.clear()
     await reload()
@@ -297,7 +306,13 @@ export default function App() {
         )}
 
         {siloRows ? (
-          <SiloView silo={view} rows={siloRows} onSetStatus={setStatus} onEdit={(row) => setForm({ row })} />
+          <SiloView
+            silo={view}
+            rows={siloRows}
+            onSetStatus={setStatus}
+            onEdit={(row) => setForm({ row })}
+            onClearSilo={() => setClearSilo(view)}
+          />
         ) : (
           <Overview rows={filtered} onSelect={setView} />
         )}
@@ -320,6 +335,14 @@ export default function App() {
           onClose={() => setForm(null)}
           onSave={(data) => saveNf(data, form.row)}
           onDelete={deleteNf}
+        />
+      )}
+      {clearSilo && (
+        <ClearSiloDialog
+          silo={clearSilo}
+          total={rows.filter((r) => r.silo === clearSilo).length}
+          onClose={() => setClearSilo(null)}
+          onConfirm={() => deleteSilo(clearSilo)}
         />
       )}
       {toast && <div className="toast">{toast}</div>}

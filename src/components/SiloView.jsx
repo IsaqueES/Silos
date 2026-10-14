@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { fmtNum, stats } from '../lib/stats.js'
 import { toCsv } from '../lib/csv.js'
 
-export default function SiloView({ silo, rows, onSetStatus, onEdit }) {
+export default function SiloView({ silo, rows, onSetStatus, onEdit, onClearSilo }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('todas')
   const [sort, setSort] = useState({ col: 'dtv_date', dir: 1 })
@@ -195,6 +195,16 @@ export default function SiloView({ silo, rows, onSetStatus, onEdit }) {
         {!visible.length && <div className="empty">Nenhum item para os filtros atuais.</div>}
       </div>
       <p className="muted small-note">Use ✓ Concluir para marcar uma NF como lançada · ✎ para editar ou excluir.</p>
+
+      <div className="danger-zone">
+        <div>
+          <b>Zona de perigo</b>
+          <div className="muted">Apaga todas as NFs do Silo {silo}, de todas as datas. Não dá para desfazer.</div>
+        </div>
+        <button className="btn danger-outline" onClick={onClearSilo}>
+          Excluir todos os dados deste silo
+        </button>
+      </div>
     </div>
   )
 }

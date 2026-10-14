@@ -258,3 +258,15 @@ td.who { font-size: 0.8rem; color: var(--muted); }
   .hero-value { font-size: 2.6rem; }
   .vlabel.alt { display: none; }
 }
+
+/* ---------- excluir dados do silo ---------- */
+.danger-zone { margin-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 18px; border: 1px solid #f1c6c0; border-radius: var(--radius); background: #fffafa; }
+.btn.danger-outline { color: var(--danger); border-color: #e6a59c; background: var(--panel); }
+.btn.danger-outline:hover:not(:disabled) { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+.alert.static { margin: 0; cursor: default; }
+.danger-modal { max-width: 540px; }
+.confirm-label { display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+.confirm-label b { color: var(--text); font-size: 0.8rem; word-break: break-word; }
+.confirm-label input { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 0.9rem; color: var(--text); }
+.confirm-label input:focus { outline: 2px solid var(--danger); border-color: transparent; }
