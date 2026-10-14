@@ -12,7 +12,8 @@ export default function NfForm({ row, defaultSilo, onClose, onSave, onDelete }) 
     nor: row?.nor ?? '',
     qtd: row?.qtd ?? '',
     dep: row?.dep ?? '',
-    silo: row?.silo || defaultSilo || '1',
+    // silo inválido (ex.: "10" vindo do CSV) obriga a escolher um silo de 1 a 9
+    silo: row ? (SILOS.includes(row.silo) ? row.silo : '') : defaultSilo || '1',
     lote: row?.lote ?? '',
     material: row?.material ?? '',
     dtv: row ? (row.dtv_date ?? parseDate(row.dtv) ?? '') : today(),
@@ -95,7 +96,12 @@ export default function NfForm({ row, defaultSilo, onClose, onSave, onDelete }) 
           </label>
           <label>
             SILO *
-            <select value={f.silo} onChange={set('silo')}>
+            <select required value={f.silo} onChange={set('silo')}>
+              {!f.silo && (
+                <option value="" disabled>
+                  {row?.silo ? `Inválido (${row.silo}) — escolha` : 'Escolha'}
+                </option>
+              )}
               {SILOS.map((s) => (
                 <option key={s} value={s}>
                   Silo {s}

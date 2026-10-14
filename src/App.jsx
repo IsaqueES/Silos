@@ -6,7 +6,7 @@ import Overview from './components/Overview.jsx'
 import SiloView from './components/SiloView.jsx'
 import ImportDialog from './components/ImportDialog.jsx'
 import NfForm from './components/NfForm.jsx'
-import ClearSiloDialog from './components/ClearSiloDialog.jsx'
+import DangerDialog from './components/DangerDialog.jsx'
 import { SILOS } from './lib/stats.js'
 import { rowKey } from './lib/csv.js'
 
@@ -29,12 +29,15 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
-  const [view, setView] = useState(() => window.location.hash.match(/^#silo-([1-9])$/)?.[1] || 'geral')
+  const [view, setView] = useState(() => {
+    const h = window.location.hash
+    return h === '#outros' ? 'outros' : h.match(/^#silo-([1-9])$/)?.[1] || 'geral'
+  })
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [importOpen, setImportOpen] = useState(false)
   const [form, setForm] = useState(null) // null | { row?: linha sendo editada }
-  const [clearSilo, setClearSilo] = useState(null) // silo com o diálogo de exclusão aberto
+  const [danger, setDanger] = useState(null) // exclusão em massa aberta: '1'..'9' | 'outros' | 'tudo'
   const [notice, setNotice] = useState('') // aviso na tela de login (ex.: senha alterada)
   const wasAllowed = useRef(false)
   const loggingOut = useRef(false)
@@ -128,7 +131,7 @@ export default function App() {
   useEffect(() => {
     // Não mexe no hash enquanto o Supabase ainda lê o token do link de login (#access_token=...)
     if (/access_token|error_description/.test(window.location.hash)) return
-    const hash = view === 'geral' ? '' : `#silo-${view}`
+    const hash = view === 'geral' ? '' : view === 'outros' ? '#outros' : `#silo-${view}`
     history.replaceState(null, '', window.location.pathname + window.location.search + hash)
   }, [view])
 
@@ -219,17 +222,47 @@ export default function App() {
     await reload()
   }
 
-  // Apaga todas as NFs do silo no banco (não só as que passam no filtro de datas)
-  const deleteSilo = async (silo) => {
-    await store.removeSilo(silo)
-    setToast(`Todos os dados do Silo ${silo} foram apagados.`)
+  // Exclusões em massa (sempre no banco todo, não só no que passa no filtro de datas)
+  const invalidRows = rows.filter((r) => !SILOS.includes(r.silo))
+  const dangerInfo = (alvo) => {
+    if (alvo === 'tudo')
+      return {
+        title: 'Excluir todos os dados',
+        phrase: 'EU DESEJO APAGAR TODOS OS DADOS DE TODOS OS SILOS',
+        count: rows.length,
+        where: 'de todos os silos',
+        run: () => store.clear(),
+        done: 'Todos os dados foram apagados.',
+      }
+    if (alvo === 'outros')
+      return {
+        title: 'Excluir NFs com silo inválido',
+        phrase: 'EU DESEJO APAGAR TODOS OS DADOS DESTE SILO',
+        count: invalidRows.length,
+        where: 'com SILO fora de 1–9',
+        run: () => store.remove(invalidRows.map((r) => r.id)),
+        done: 'NFs com silo inválido apagadas.',
+      }
+    return {
+      title: `Excluir todos os dados do Silo ${alvo}`,
+      phrase: 'EU DESEJO APAGAR TODOS OS DADOS DESTE SILO',
+      count: rows.filter((r) => r.silo === alvo).length,
+      where: `do Silo ${alvo}`,
+      run: () => store.removeSilo(alvo),
+      done: `Todos os dados do Silo ${alvo} foram apagados.`,
+    }
+  }
+  const runDanger = async (info) => {
+    await info.run()
+    setToast(info.done)
+    if (danger === 'outros') setView('geral')
     await reload()
   }
 
-  const clearAll = async () => {
-    await store.clear()
-    await reload()
-  }
+  // Corrigiu/apagou a última NF com silo inválido: volta para a visão geral
+  useEffect(() => {
+    if (view === 'outros' && allowed && !loading && invalidRows.length === 0) setView('geral')
+  }, [view, allowed, loading, invalidRows.length])
 
   if (!authReady) return <div className="center-screen">Carregando…</div>
   if (!loggedIn) return <Login initialName={nome} notice={notice} onLogin={login} />
@@ -250,7 +283,11 @@ export default function App() {
       </div>
     )
 
-  const siloRows = SILOS.includes(view) ? filtered.filter((r) => r.silo === view) : null
+  const siloRows = SILOS.includes(view)
+    ? filtered.filter((r) => r.silo === view)
+    : view === 'outros'
+      ? filtered.filter((r) => !SILOS.includes(r.silo))
+      : null
 
   return (
     <div className="layout">
@@ -258,13 +295,14 @@ export default function App() {
         rows={filtered}
         view={view}
         onSelect={setView}
+        invalidCount={invalidRows.length}
         nome={nome}
         onLogout={() => logout()}
       />
       <main className="main">
         <header className="topbar">
           <div className="title">
-            <h1>{siloRows ? `Silo ${view}` : 'Visão geral'}</h1>
+            <h1>{view === 'outros' ? 'Silo inválido' : siloRows ? `Silo ${view}` : 'Visão geral'}</h1>
             {isLocalMode && <span className="badge warn">modo local</span>}
           </div>
           <div className="toolbar">
@@ -308,13 +346,14 @@ export default function App() {
         {siloRows ? (
           <SiloView
             silo={view}
+            label={view === 'outros' ? 'NFs com silo inválido' : `Silo ${view}`}
             rows={siloRows}
             onSetStatus={setStatus}
             onEdit={(row) => setForm({ row })}
-            onClearSilo={() => setClearSilo(view)}
+            onClearSilo={() => setDanger(view)}
           />
         ) : (
-          <Overview rows={filtered} onSelect={setView} />
+          <Overview rows={filtered} onSelect={setView} onClearAll={() => setDanger('tudo')} totalRows={rows.length} />
         )}
       </main>
 
@@ -323,9 +362,7 @@ export default function App() {
           onClose={() => setImportOpen(false)}
           onImportBase={importBase}
           onImportLancadas={importLancadas}
-          onClearAll={clearAll}
           onDone={setToast}
-          totalRows={rows.length}
         />
       )}
       {form && (
@@ -337,14 +374,16 @@ export default function App() {
           onDelete={deleteNf}
         />
       )}
-      {clearSilo && (
-        <ClearSiloDialog
-          silo={clearSilo}
-          total={rows.filter((r) => r.silo === clearSilo).length}
-          onClose={() => setClearSilo(null)}
-          onConfirm={() => deleteSilo(clearSilo)}
-        />
-      )}
+      {danger &&
+        (() => {
+          const info = dangerInfo(danger)
+          return (
+            <DangerDialog title={info.title} phrase={info.phrase} onClose={() => setDanger(null)} onConfirm={() => runDanger(info)}>
+              Isso apaga <b>{info.count} NF(s)</b> {info.where} (pendentes e concluídas, de todas as datas) para todos os
+              usuários. <b>Não dá para desfazer.</b>
+            </DangerDialog>
+          )
+        })()}
       {toast && <div className="toast">{toast}</div>}
     </div>
   )

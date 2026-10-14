@@ -12,7 +12,7 @@ const MODES = {
   },
 }
 
-export default function ImportDialog({ onClose, onImportBase, onImportLancadas, onClearAll, onDone, totalRows }) {
+export default function ImportDialog({ onClose, onImportBase, onImportLancadas, onDone }) {
   const [mode, setMode] = useState('lancadas')
   const [parsed, setParsed] = useState(null)
   const [fileName, setFileName] = useState('')
@@ -36,20 +36,6 @@ export default function ImportDialog({ onClose, onImportBase, onImportLancadas, 
     try {
       const msg = await (mode === 'base' ? onImportBase : onImportLancadas)(parsed.rows)
       onDone(msg)
-      onClose()
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const clear = async () => {
-    if (!confirm(`Apagar TODOS os ${totalRows} itens? Isso não pode ser desfeito.`)) return
-    setBusy(true)
-    try {
-      await onClearAll()
-      onDone('Todos os dados foram apagados.')
       onClose()
     } catch (e) {
       setError(e.message)
@@ -144,9 +130,6 @@ export default function ImportDialog({ onClose, onImportBase, onImportLancadas, 
         {error && <p className="error">{error}</p>}
 
         <div className="modal-foot">
-          <button className="btn danger-ghost" onClick={clear} disabled={busy || !totalRows}>
-            Apagar todos os dados
-          </button>
           <div className="spacer" />
           <button className="btn ghost" onClick={onClose}>
             Cancelar

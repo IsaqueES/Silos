@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { SILOS, fmtNum, stats } from '../lib/stats.js'
 import { formatDate } from '../lib/csv.js'
+import DangerZone from './DangerZone.jsx'
 
 // Cores dos gráficos (validadas para daltonismo; o âmbar tem pouco contraste,
 // por isso os valores sempre aparecem escritos e há a visão em tabela).
@@ -9,9 +10,8 @@ const SERIES = [
   { key: 'pending', label: 'Pendentes', color: 'var(--chart-pend)' },
 ]
 
-export default function Overview({ rows, onSelect }) {
+export default function Overview({ rows, onSelect, onClearAll, totalRows }) {
   const all = stats(rows)
-  const others = rows.filter((r) => !SILOS.includes(r.silo))
   const [tip, setTip] = useState(null)
 
   const perSilo = useMemo(() => SILOS.map((s) => ({ silo: s, ...stats(rows.filter((r) => r.silo === s)) })), [rows])
@@ -133,12 +133,12 @@ export default function Overview({ rows, onSelect }) {
         </>
       )}
 
-      {others.length > 0 && (
-        <div className="alert warn">
-          {others.length} item(ns) com SILO fora de 1–9 (
-          {[...new Set(others.map((r) => r.silo || 'vazio'))].slice(0, 5).join(', ')}). Confira a coluna SILO do CSV.
-        </div>
-      )}
+      <DangerZone
+        text="Apaga todas as NFs de todos os silos, de todas as datas. Não dá para desfazer."
+        button="Excluir todos os dados de todos os silos"
+        onClick={onClearAll}
+        disabled={!totalRows}
+      />
 
       {tip && <Tooltip {...tip} />}
     </div>

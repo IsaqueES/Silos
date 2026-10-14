@@ -1,6 +1,6 @@
 import { SILOS, stats } from '../lib/stats.js'
 
-export default function Sidebar({ rows, view, onSelect, nome, onLogout }) {
+export default function Sidebar({ rows, view, onSelect, nome, onLogout, invalidCount }) {
   const all = stats(rows)
   return (
     <aside className="sidebar">
@@ -32,6 +32,17 @@ export default function Sidebar({ rows, view, onSelect, nome, onLogout }) {
             </button>
           )
         })}
+        {invalidCount > 0 && (
+          <button
+            className={`nav-item nav-invalid ${view === 'outros' ? 'active' : ''}`}
+            onClick={() => onSelect('outros')}
+            title="NFs com SILO fora de 1–9"
+          >
+            <span className="nav-icon">!</span>
+            <span className="nav-label">Silo inválido</span>
+            <span className="nav-count">{invalidCount}</span>
+          </button>
+        )}
       </nav>
       <div className="user">
         <div className="avatar">{(nome || '?')[0].toUpperCase()}</div>
