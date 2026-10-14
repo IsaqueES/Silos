@@ -60,6 +60,10 @@ const remote = {
       if (error) throw error
     }
   },
+  async removeSilo(silo) {
+    const { error } = await supabase.from('nfs').delete().eq('silo', silo)
+    if (error) throw error
+  },
   async clear() {
     const { error } = await supabase.from('nfs').delete().gte('id', 0)
     if (error) throw error
@@ -105,6 +109,9 @@ const local = {
   async remove(ids) {
     const set = new Set(ids)
     save(load().filter((r) => !set.has(r.id)))
+  },
+  async removeSilo(silo) {
+    save(load().filter((r) => r.silo !== silo))
   },
   async clear() {
     save([])
