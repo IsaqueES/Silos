@@ -63,7 +63,7 @@ A senha fica guardada no Supabase (nunca no código do site), como a senha de um
    - E-mail: `acesso@silos.app`
    - Senha: a senha geral que você quiser
    - Marque **Auto Confirm User**
-2. **SQL Editor**: rode [`supabase/migracao-senha-geral.sql`](supabase/migracao-senha-geral.sql) [`supabase/migracao-sessoes.sql`](supabase/migracao-sessoes.sql) e [`supabase/migracao-metas.sql`](supabase/migracao-metas.sql) (quem instalou do zero com o `schema.sql` atual não precisa).
+2. **SQL Editor**: rode [`supabase/migracao-senha-geral.sql`](supabase/migracao-senha-geral.sql), [`supabase/migracao-sessoes.sql`](supabase/migracao-sessoes.sql) e [`supabase/migracao-metas.sql`](supabase/migracao-metas.sql) (quem instalou do zero com o `schema.sql` atual não precisa).
 3. **Authentication > Sign In / Providers > Email**: deixe o provedor *Email* ligado. Recomendo **desligar "Allow new users to sign up"**, para ninguém criar contas.
 
 O site lembra o último nome usado em cada navegador ("Entrando como **Fulano**"), então a pessoa só digita a senha. Nomes são padronizados (`isaque` → `Isaque`).
