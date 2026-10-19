@@ -2,14 +2,15 @@ import { useMemo, useState } from 'react'
 import { fmtNum, stats } from '../lib/stats.js'
 import { toCsv } from '../lib/csv.js'
 import DangerZone from './DangerZone.jsx'
+import MetaCard from './MetaCard.jsx'
 
-export default function SiloView({ silo, label, rows, onSetStatus, onEdit, onClearSilo }) {
+export default function SiloView({ silo, label, rows, meta, onSetMeta, onSetStatus, onEdit, onClearSilo }) {
   const invalid = silo === 'outros'
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('todas')
   const [sort, setSort] = useState({ col: 'dtv_date', dir: 1 })
 
-  const st = stats(rows)
+  const st = stats(rows, meta)
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -82,10 +83,12 @@ export default function SiloView({ silo, label, rows, onSetStatus, onEdit, onCle
             {fmtNum(st.qtdTotal)} · {fmtNum(st.qtdPend)}
           </div>
           <div className="bar">
-            <span style={{ width: `${st.pct}%` }} />
+            <span style={{ width: `${Math.min(100, st.pct)}%` }} />
           </div>
         </div>
       </div>
+
+      {!invalid && <MetaCard silo={silo} st={st} onSave={onSetMeta} />}
 
       {invalid && (
         <div className="alert warn static">

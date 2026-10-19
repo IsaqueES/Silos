@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { SILOS, fmtNum, stats } from '../lib/stats.js'
+import { SILOS, fmtNum, overall, stats } from '../lib/stats.js'
 import { formatDate } from '../lib/csv.js'
 import DangerZone from './DangerZone.jsx'
 
@@ -10,11 +10,22 @@ const SERIES = [
   { key: 'pending', label: 'Pendentes', color: 'var(--chart-pend)' },
 ]
 
-export default function Overview({ rows, onSelect, onClearAll, totalRows }) {
-  const all = stats(rows)
+export default function Overview({ rows, metas, onSelect, onClearAll, totalRows }) {
+  const all = overall(rows, metas)
+  const anyMeta = SILOS.some((s) => metas[s] > 0)
   const [tip, setTip] = useState(null)
 
-  const perSilo = useMemo(() => SILOS.map((s) => ({ silo: s, ...stats(rows.filter((r) => r.silo === s)) })), [rows])
+  const perSilo = useMemo(
+    () =>
+      SILOS.map((s) => ({
+        silo: s,
+        ...stats(
+          rows.filter((r) => r.silo === s),
+          metas[s],
+        ),
+      })),
+    [rows, metas],
+  )
 
   const perDate = useMemo(() => {
     const map = new Map()
@@ -27,16 +38,16 @@ export default function Overview({ rows, onSelect, onClearAll, totalRows }) {
     return [...map.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-31)
   }, [rows])
 
-  const showTip = (e, title, values) => {
+  const showTip = (e, title, values, extra) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX || rect.left + rect.width / 2
     const y = e.clientY || rect.top
-    setTip({ x, y, title, values })
+    setTip({ x, y, title, values, extra })
   }
-  const tipProps = (title, values) => ({
-    onPointerMove: (e) => showTip(e, title, values),
+  const tipProps = (title, values, extra) => ({
+    onPointerMove: (e) => showTip(e, title, values, extra),
     onPointerLeave: () => setTip(null),
-    onFocus: (e) => showTip(e, title, values),
+    onFocus: (e) => showTip(e, title, values, extra),
     onBlur: () => setTip(null),
   })
 
@@ -47,10 +58,12 @@ export default function Overview({ rows, onSelect, onClearAll, totalRows }) {
           <div className="stat-label">Progresso geral</div>
           <div className="hero-value">{all.pct}%</div>
           <div className="bar">
-            <span style={{ width: `${all.pct}%` }} />
+            <span style={{ width: `${Math.min(100, all.pct)}%` }} />
           </div>
           <div className="muted">
-            {all.done} de {all.total} itens lançados no SAP
+            {all.hasMeta
+              ? `${all.counted} de ${all.base} itens (somando as metas dos silos)`
+              : `${all.done} de ${all.total} itens lançados no SAP`}
           </div>
         </div>
         <div className="cards">
@@ -69,7 +82,8 @@ export default function Overview({ rows, onSelect, onClearAll, totalRows }) {
         <>
           <ChartCard
             title="Concluídas e pendentes por silo"
-            subtitle="Clique em um silo para abrir a lista de NFs"
+            subtitle={anyMeta ? 'A faixa cinza vai até a meta de itens de cada silo (linha preta) · clique em um silo para abrir' : 'Clique em um silo para abrir a lista de NFs'}
+            legendMeta={anyMeta}
             table={
               <table>
                 <thead>
@@ -78,7 +92,8 @@ export default function Overview({ rows, onSelect, onClearAll, totalRows }) {
                     <th className="num">Concluídas</th>
                     <th className="num">Pendentes</th>
                     <th className="num">Total</th>
-                    <th className="num">Progresso</th>
+                    <th className="num">Meta</th>
+                    <th className="num">{anyMeta ? '% da meta' : 'Progresso'}</th>
                     <th className="num">Qtd. pendente</th>
                   </tr>
                 </thead>
@@ -89,6 +104,7 @@ export default function Overview({ rows, onSelect, onClearAll, totalRows }) {
                       <td className="num">{s.done}</td>
                       <td className="num">{s.pending}</td>
                       <td className="num">{s.total}</td>
+                      <td className="num">{s.meta ?? '—'}</td>
                       <td className="num">{s.pct}%</td>
                       <td className="num">{fmtNum(s.qtdPend)}</td>
                     </tr>
@@ -145,7 +161,7 @@ export default function Overview({ rows, onSelect, onClearAll, totalRows }) {
   )
 }
 
-function ChartCard({ title, subtitle, table, children }) {
+function ChartCard({ title, subtitle, table, legendMeta, children }) {
   const [asTable, setAsTable] = useState(false)
   return (
     <section className="chart-card">
@@ -155,7 +171,7 @@ function ChartCard({ title, subtitle, table, children }) {
           {subtitle && <div className="muted">{subtitle}</div>}
         </div>
         <div className="chart-tools">
-          <Legend />
+          <Legend showMeta={legendMeta} />
           <div className="segmented small">
             <button className={!asTable ? 'active' : ''} onClick={() => setAsTable(false)}>
               Gráfico
@@ -171,7 +187,7 @@ function ChartCard({ title, subtitle, table, children }) {
   )
 }
 
-function Legend() {
+function Legend({ showMeta }) {
   return (
     <div className="legend">
       {SERIES.map((s) => (
@@ -180,13 +196,20 @@ function Legend() {
           {s.label}
         </span>
       ))}
+      {showMeta && (
+        <span className="legend-item">
+          <span className="swatch meta-swatch" />
+          Meta
+        </span>
+      )}
     </div>
   )
 }
 
-// Barras horizontais empilhadas: uma por silo, escala comum (maior total = largura cheia)
+// Barras horizontais empilhadas: uma por silo, escala comum (maior total ou meta = largura cheia).
+// A linha preta marca a meta de itens do silo.
 function SiloBars({ data, onSelect, tipProps }) {
-  const max = Math.max(1, ...data.map((d) => d.total))
+  const max = Math.max(1, ...data.map((d) => Math.max(d.total, d.meta || 0)))
   return (
     <div className="hbars">
       {data.map((d) => {
@@ -194,38 +217,60 @@ function SiloBars({ data, onSelect, tipProps }) {
           { ...SERIES[0], value: d.done },
           { ...SERIES[1], value: d.pending },
         ]
+        const extra = d.meta ? `Meta ${d.meta} · ${d.pct}% lançado` : null
+        const empty = d.total === 0 && !d.meta
         return (
           <div key={d.silo} className="hbar-row">
             <button className="hbar-label" onClick={() => onSelect(d.silo)}>
               Silo {d.silo}
             </button>
-            <div className="hbar-track">
-              {d.total === 0 ? (
+            <div className="hbar-area">
+              {empty ? (
                 <span className="hbar-empty">sem NFs</span>
               ) : (
-                <div className="hbar" style={{ width: `${(d.total / max) * 100}%` }}>
-                  {values
-                    .filter((v) => v.value > 0)
-                    .map((v) => (
-                      <div
-                        key={v.key}
-                        className="hbar-seg"
-                        tabIndex={0}
-                        role="button"
-                        aria-label={`Silo ${d.silo}: ${v.value} ${v.label.toLowerCase()}`}
-                        style={{ flexGrow: v.value, background: v.color }}
-                        onClick={() => onSelect(d.silo)}
-                        {...tipProps(`Silo ${d.silo}`, values)}
-                      />
-                    ))}
-                </div>
-              )}
-              {d.total > 0 && (
-                <span className="hbar-value">
-                  <b>{d.pending}</b> pend. · {d.pct}%
-                </span>
+                <>
+                  {d.meta && <span className="meta-track" style={{ width: `${(d.meta / max) * 100}%` }} />}
+                  {d.total > 0 && (
+                    <div className="hbar" style={{ width: `${(d.total / max) * 100}%` }}>
+                      {values
+                        .filter((v) => v.value > 0)
+                        .map((v) => (
+                          <div
+                            key={v.key}
+                            className="hbar-seg"
+                            tabIndex={0}
+                            role="button"
+                            aria-label={`Silo ${d.silo}: ${v.value} ${v.label.toLowerCase()}`}
+                            style={{ flexGrow: v.value, background: v.color }}
+                            onClick={() => onSelect(d.silo)}
+                            {...tipProps(`Silo ${d.silo}`, values, extra)}
+                          />
+                        ))}
+                    </div>
+                  )}
+                  {d.meta && (
+                    <span
+                      className="meta-mark"
+                      style={{ left: `${(d.meta / max) * 100}%` }}
+                      title={`Meta: ${d.meta} itens`}
+                    />
+                  )}
+                </>
               )}
             </div>
+            {!empty && (
+              <span className="hbar-value" title={d.meta ? 'lançadas ÷ meta' : 'pendentes · % lançado'}>
+                {d.meta ? (
+                  <>
+                    <b>{d.done}</b> de {d.meta} · <b>{d.pct}%</b>
+                  </>
+                ) : (
+                  <>
+                    <b>{d.pending}</b> pend. · {d.pct}%
+                  </>
+                )}
+              </span>
+            )}
           </div>
         )
       })}
@@ -290,7 +335,7 @@ function niceTicks(max) {
   return out
 }
 
-function Tooltip({ x, y, title, values }) {
+function Tooltip({ x, y, title, values, extra }) {
   const total = values.reduce((s, v) => s + v.value, 0)
   const left = Math.min(x + 14, window.innerWidth - 190)
   return (
@@ -304,6 +349,7 @@ function Tooltip({ x, y, title, values }) {
         </div>
       ))}
       <div className="tip-row muted">Total {total}</div>
+      {extra && <div className="tip-row tip-meta">{extra}</div>}
     </div>
   )
 }

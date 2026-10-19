@@ -26,6 +26,7 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false)
   const [allowed, setAllowed] = useState(null)
   const [rows, setRows] = useState([])
+  const [metas, setMetas] = useState({}) // meta de itens por silo: { '1': 30, ... }
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
@@ -85,7 +86,10 @@ export default function App() {
     setLoading(true)
     setError('')
     try {
-      setRows(await store.fetchAll())
+      // metas: se a tabela ainda não existe (migração não rodada), o site segue funcionando sem elas
+      const [dados, m] = await Promise.all([store.fetchAll(), store.fetchMetas().catch(() => null)])
+      setRows(dados)
+      if (m) setMetas(m)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -194,6 +198,28 @@ export default function App() {
     return `${toConclude.length} item(ns) marcados como OK · ${newRows.length} NF(s) novas criadas já concluídas · ${already} NF(s) do arquivo encontradas na base.`
   }
 
+  // Meta de itens do silo (vazio/0 remove a meta)
+  const saveMeta = async (silo, value) => {
+    const meta = Number(value) >= 1 ? Math.floor(Number(value)) : null
+    const before = metas
+    setMetas((m) => {
+      const n = { ...m }
+      if (meta) n[silo] = meta
+      else delete n[silo]
+      return n
+    })
+    try {
+      await store.setMeta(silo, meta, nome)
+      setToast(meta ? `Meta do Silo ${silo}: ${meta} itens.` : `Meta do Silo ${silo} removida.`)
+    } catch (e) {
+      setMetas(before)
+      setError(
+        `Não foi possível salvar a meta: ${e.message}` +
+          (/silos_meta/.test(e.message) ? ' — rode supabase/migracao-metas.sql no SQL Editor do Supabase.' : ''),
+      )
+    }
+  }
+
   // Inclusão/edição manual de uma NF pelo formulário
   const saveNf = async (data, existing) => {
     const key = rowKey(data)
@@ -295,6 +321,7 @@ export default function App() {
         rows={filtered}
         view={view}
         onSelect={setView}
+        metas={metas}
         invalidCount={invalidRows.length}
         nome={nome}
         onLogout={() => logout()}
@@ -347,13 +374,15 @@ export default function App() {
           <SiloView
             silo={view}
             label={view === 'outros' ? 'NFs com silo inválido' : `Silo ${view}`}
+            meta={metas[view]}
+            onSetMeta={saveMeta}
             rows={siloRows}
             onSetStatus={setStatus}
             onEdit={(row) => setForm({ row })}
             onClearSilo={() => setDanger(view)}
           />
         ) : (
-          <Overview rows={filtered} onSelect={setView} onClearAll={() => setDanger('tudo')} totalRows={rows.length} />
+          <Overview rows={filtered} metas={metas} onSelect={setView} onClearAll={() => setDanger('tudo')} totalRows={rows.length} />
         )}
       </main>
 
