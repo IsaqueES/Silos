@@ -64,6 +64,18 @@ const remote = {
     const { error } = await supabase.from('nfs').delete().eq('silo', silo)
     if (error) throw error
   },
+  async fetchMetas() {
+    const { data, error } = await supabase.from('silos_meta').select('silo, meta')
+    if (error) throw error
+    return Object.fromEntries(data.map((m) => [m.silo, m.meta]))
+  },
+  async setMeta(silo, meta, por) {
+    const q = supabase.from('silos_meta')
+    const { error } = meta
+      ? await q.upsert({ silo, meta, atualizado_por: por, atualizado_em: new Date().toISOString() }, { onConflict: 'silo' })
+      : await q.delete().eq('silo', silo)
+    if (error) throw error
+  },
   async clear() {
     const { error } = await supabase.from('nfs').delete().gte('id', 0)
     if (error) throw error
@@ -112,6 +124,19 @@ const local = {
   },
   async removeSilo(silo) {
     save(load().filter((r) => r.silo !== silo))
+  },
+  async fetchMetas() {
+    try {
+      return JSON.parse(localStorage.getItem('silos:metas')) ?? {}
+    } catch {
+      return {}
+    }
+  },
+  async setMeta(silo, meta) {
+    const metas = await local.fetchMetas()
+    if (meta) metas[silo] = meta
+    else delete metas[silo]
+    localStorage.setItem('silos:metas', JSON.stringify(metas))
   },
   async clear() {
     save([])

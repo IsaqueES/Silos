@@ -1,6 +1,6 @@
 import { SILOS, stats } from '../lib/stats.js'
 
-export default function Sidebar({ rows, view, onSelect, nome, onLogout, invalidCount }) {
+export default function Sidebar({ rows, metas, view, onSelect, nome, onLogout, invalidCount }) {
   const all = stats(rows)
   return (
     <aside className="sidebar">
@@ -16,14 +16,17 @@ export default function Sidebar({ rows, view, onSelect, nome, onLogout, invalidC
         </button>
         <div className="nav-section">Silos</div>
         {SILOS.map((s) => {
-          const st = stats(rows.filter((r) => r.silo === s))
+          const st = stats(
+            rows.filter((r) => r.silo === s),
+            metas[s],
+          )
           return (
             <button key={s} className={`nav-item ${view === s ? 'active' : ''}`} onClick={() => onSelect(s)}>
               <span className="nav-icon silo-num">{s}</span>
               <span className="nav-label">
                 Silo {s}
                 <span className="mini-bar">
-                  <span style={{ width: `${st.pct}%` }} />
+                  <span style={{ width: `${Math.min(100, st.pct)}%` }} />
                 </span>
               </span>
               <span className={`nav-count ${st.pending ? '' : 'zero'}`} title="Pendentes">
