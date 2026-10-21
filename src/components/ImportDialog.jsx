@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { parseCsv, readFileText } from '../lib/csv.js'
+import { useMemo, useState } from 'react'
+import { parseCsv, parseSheet, readFileText } from '../lib/csv.js'
+import { defaultSheet, isExcelFile, readSheets } from '../lib/excel.js'
 
 const MODES = {
   base: {
@@ -14,17 +15,30 @@ const MODES = {
 
 export default function ImportDialog({ onClose, onImportBase, onImportLancadas, onDone }) {
   const [mode, setMode] = useState('lancadas')
-  const [parsed, setParsed] = useState(null)
+  const [csvParsed, setCsvParsed] = useState(null)
+  const [sheets, setSheets] = useState(null) // planilha Excel: [{ sheet, data }]
+  const [sheetIdx, setSheetIdx] = useState(0)
   const [fileName, setFileName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  // CSV já vem interpretado; planilha é reinterpretada ao trocar de aba
+  const parsed = useMemo(() => (sheets ? parseSheet(sheets[sheetIdx].data) : csvParsed), [sheets, sheetIdx, csvParsed])
 
   const onFile = async (file) => {
     if (!file) return
     setError('')
     setFileName(file.name)
+    setCsvParsed(null)
+    setSheets(null)
     try {
-      setParsed(parseCsv(await readFileText(file)))
+      if (isExcelFile(file)) {
+        const all = await readSheets(file)
+        setSheetIdx(defaultSheet(all))
+        setSheets(all)
+      } else {
+        setCsvParsed(parseCsv(await readFileText(file)))
+      }
     } catch (e) {
       setError(e.message)
     }
@@ -48,7 +62,7 @@ export default function ImportDialog({ onClose, onImportBase, onImportLancadas, 
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>Importar CSV</h2>
+          <h2>Importar planilha</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Fechar">
             ✕
           </button>
@@ -74,10 +88,31 @@ export default function ImportDialog({ onClose, onImportBase, onImportLancadas, 
             onFile(e.dataTransfer.files[0])
           }}
         >
-          <input type="file" accept=".csv,text/csv" onChange={(e) => onFile(e.target.files[0])} hidden />
-          {fileName ? <b>{fileName}</b> : 'Arraste o arquivo .csv aqui ou clique para escolher'}
+          <input
+            type="file"
+            accept=".xlsx,.xlsm,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={(e) => {
+              onFile(e.target.files[0])
+              e.target.value = '' // permite escolher o mesmo arquivo de novo (ex.: depois de corrigir a planilha)
+            }}
+            hidden
+          />
+          {fileName ? <b>{fileName}</b> : 'Arraste a planilha Excel (.xlsx) ou o .csv aqui, ou clique para escolher'}
           <div className="muted">Colunas: NF; NOR; QTD; DEP; SILO; LOTE; MATERIAL; DTV</div>
         </label>
+
+        {sheets && sheets.length > 1 && (
+          <label className="sheet-pick">
+            Aba da planilha
+            <select value={sheetIdx} onChange={(e) => setSheetIdx(Number(e.target.value))}>
+              {sheets.map((sh, i) => (
+                <option key={sh.sheet} value={i}>
+                  {sh.sheet}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         {parsed && (
           <div className="preview">

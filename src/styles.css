@@ -297,3 +297,6 @@ td.bad-silo { color: var(--danger); font-weight: 600; }
 .meta-form input { width: 110px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 1rem; color: var(--text); }
 .meta-form input:focus { outline: 2px solid var(--accent); border-color: transparent; }
 .meta-hint { margin: 0; }
+
+.sheet-pick { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+.sheet-pick select { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font: inherit; color: var(--text); background: var(--panel); }
