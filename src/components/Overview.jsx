@@ -75,7 +75,7 @@ export default function Overview({ rows, metas, onSelect, onClearAll, totalRows 
 
       {rows.length === 0 ? (
         <div className="empty">
-          Nenhuma NF ainda. Clique em <b>+ Nova NF</b> para incluir uma, ou em <b>Importar CSV</b> para enviar a base do
+          Nenhuma NF ainda. Clique em <b>+ Nova NF</b> para incluir uma, ou em <b>Importar planilha</b> para enviar a base do
           período.
         </div>
       ) : (

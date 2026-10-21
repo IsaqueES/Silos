@@ -28,11 +28,16 @@ export async function readFileText(file) {
   return text.replace(/^﻿/, '')
 }
 
+// decimalComma: true  -> vírgula é o decimal e o ponto é milhar ("32.450,5")
+//               false -> ponto decimal, a menos que haja vírgula
+//               'auto' -> (planilhas) texto com vírgula ou com milhar ("28.100") é pt-BR; o resto é número comum
 export function parseNumber(value, decimalComma) {
   if (value == null) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
   let s = String(value).trim().replace(/\s/g, '')
   if (!s) return null
-  if (decimalComma || s.includes(',')) s = s.replace(/\./g, '').replace(',', '.')
+  const ptBr = decimalComma === 'auto' ? /,/.test(s) || /^\d{1,3}(\.\d{3})+$/.test(s) : decimalComma
+  if (ptBr || s.includes(',')) s = s.replace(/\./g, '').replace(',', '.')
   const n = Number(s)
   return Number.isFinite(n) ? n : null
 }
@@ -77,31 +82,51 @@ export function normalizeNf(value) {
 
 export const rowKey = (r) => [r.nf, r.silo, r.lote, r.material].join('|')
 
-export function parseCsv(text) {
-  const parsed = Papa.parse(text, { skipEmptyLines: 'greedy' })
-  const data = parsed.data
+// Procura, nas primeiras linhas, a que tem o cabeçalho (coluna NF). Planilhas costumam ter títulos acima.
+export function findHeaderRow(data) {
+  for (let i = 0; i < Math.min(15, data.length); i++) {
+    if (data[i].some((c) => ALIASES[headerKey(c)] === 'nf')) return i
+  }
+  return -1
+}
+
+// Número de série do Excel (dias desde 30/12/1899) -> 'dd/mm/aaaa'
+function serialToDmy(n) {
+  const d = new Date(Math.round((n - 25569) * 86400000))
+  return dmy(d)
+}
+function dmy(d) {
+  // as datas lidas do Excel vêm em UTC (meia-noite), então usamos os getters UTC
+  const p = (x) => String(x).padStart(2, '0')
+  return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`
+}
+
+// data: matriz de células (linhas x colunas), vinda de CSV ou de planilha
+function parseTable(data, { decimalComma }) {
   if (!data.length) return { rows: [], errors: ['Arquivo vazio.'] }
 
-  const decimalComma = parsed.meta.delimiter === ';'
-  const header = data[0].map((h) => ALIASES[headerKey(h)])
-  const hasHeader = header.includes('nf')
+  const headerIdx = findHeaderRow(data)
+  const hasHeader = headerIdx >= 0
   // Sem cabeçalho: assume a ordem NF;NOR;QTD;DEP;SILO;LOTE;MATERIAL;DTV
-  const map = hasHeader ? header : COLUMNS
-  const body = hasHeader ? data.slice(1) : data
+  const map = hasHeader ? data[headerIdx].map((h) => ALIASES[headerKey(h)]) : COLUMNS
+  const start = hasHeader ? headerIdx + 1 : 0
 
   const rows = []
   const errors = []
   const seen = new Set()
-  body.forEach((cells, i) => {
+  data.slice(start).forEach((cells, i) => {
+    if (cells.every((c) => c == null || String(c).trim() === '')) return // linha em branco
     const raw = {}
     map.forEach((col, idx) => {
       if (col) raw[col] = cells[idx]
     })
     const nf = normalizeNf(raw.nf)
     if (!nf) {
-      errors.push(`Linha ${i + (hasHeader ? 2 : 1)}: NF vazia, ignorada.`)
+      errors.push(`Linha ${start + i + 1}: NF vazia, ignorada.`)
       return
     }
+    // DTV numérica = data em formato "Geral" no Excel (número de série)
+    if (typeof raw.dtv === 'number' && raw.dtv > 20000 && raw.dtv < 80000) raw.dtv = serialToDmy(raw.dtv)
     const row = {
       nf,
       nor: parseNumber(raw.nor, decimalComma),
@@ -119,6 +144,17 @@ export function parseCsv(text) {
     rows.push(row)
   })
   return { rows, errors, hasHeader }
+}
+
+export function parseCsv(text) {
+  const parsed = Papa.parse(text, { skipEmptyLines: 'greedy' })
+  return parseTable(parsed.data, { decimalComma: parsed.meta.delimiter === ';' })
+}
+
+// data: linhas da planilha (células como número, texto, Date ou vazio), como devolve o read-excel-file
+export function parseSheet(data) {
+  const cells = data.map((row) => row.map((c) => (c instanceof Date ? dmy(c) : typeof c === 'boolean' ? '' : c)))
+  return parseTable(cells, { decimalComma: 'auto' })
 }
 
 export function toCsv(rows) {

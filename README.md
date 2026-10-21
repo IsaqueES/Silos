@@ -14,27 +14,30 @@ Site para acompanhar as NFs dos romaneios por silo (1 a 9): quais já foram lan�
 
 ## Como funciona
 
-O CSV tem as colunas abaixo (com ou sem cabeçalho; separador `;` ou `,`):
+A planilha pode ser um **Excel (`.xlsx`)** ou um **CSV**, com as colunas abaixo, nesta ordem (com ou sem cabeçalho):
 
 ```
 NF;NOR;QTD;DEP;SILO;LOTE;MATERIAL;DTV
 1001;5501;32.450,5;D01;1;L2026-01;100234;01/10/2026
 ```
 
-Em **Importar CSV** há duas opções:
+- **Excel:** pode ter títulos acima do cabeçalho e linhas em branco (o site acha o cabeçalho sozinho). Se o arquivo tiver várias abas, escolha a aba na janela de importação (a primeira com a coluna NF já vem selecionada). O formato antigo `.xls` não é lido: salve como `.xlsx`.
+- **CSV:** separador `;` ou `,`.
+
+Em **Importar planilha** há duas opções:
 
 | Opção | O que faz |
 |---|---|
 | **Base de NFs (pendentes)** | Carrega todas as NFs do período. Elas entram como *não concluídas*. NFs que já existem não são alteradas. |
 | **NFs lançadas no SAP (concluir)** | Toda NF do arquivo vira **OK**. Se a NF não estava na base, ela é criada já concluída. |
 
-Exemplo: a base tem `[1:não, 2:não, 3:não, 4:não]`; você envia o CSV com as NFs `2` e `3` → fica `[1:não, 2:sim, 3:sim, 4:não]`.
+Exemplo: a base tem `[1:não, 2:não, 3:não, 4:não]`; você envia a planilha com as NFs `2` e `3` → fica `[1:não, 2:sim, 3:sim, 4:não]`.
 
 Detalhes:
 - A comparação é feita pelo **número da NF** (zeros à esquerda são ignorados: `000123` = `123`). Se uma NF tiver vários itens/lotes, todos ficam OK.
 - A coluna SILO aceita `3`, `Silo 3`, `S03`…
 - DTV aceita `dd/mm/aaaa`, `dd.mm.aaaa` ou `aaaa-mm-dd` — é ela que o filtro de período usa.
-- No Excel: *Arquivo > Salvar como > CSV (separado por vírgulas)*. Arquivos de exemplo: `exemplo-base.csv` e `exemplo-lancadas.csv`.
+- Arquivos de exemplo: `exemplo-base.xlsx` / `exemplo-lancadas.xlsx` (Excel) e `exemplo-base.csv` / `exemplo-lancadas.csv`.
 
 ## Rodar no computador
 

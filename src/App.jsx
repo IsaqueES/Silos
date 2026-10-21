@@ -356,7 +356,7 @@ export default function App() {
               {loading ? 'Carregando…' : '↻ Atualizar'}
             </button>
             <button className="btn ghost" onClick={() => setImportOpen(true)}>
-              ⬆ Importar CSV
+              ⬆ Importar planilha
             </button>
             <button className="btn primary" onClick={() => setForm({})}>
               + Nova NF
