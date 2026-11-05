@@ -1,6 +1,6 @@
 # 🌾 Controle de Silos
 
-Site para acompanhar as NFs dos romaneios por silo (1 a 9): quais já foram lançadas no SAP e quais ainda estão pendentes.
+Site para acompanhar as NFs dos romaneios por silo: quais já foram lançadas no SAP e quais ainda estão pendentes.
 
 - Sidebar com cada silo, contador de pendentes e barra de progresso
 - Visão geral com o progresso de todos os silos
@@ -8,7 +8,7 @@ Site para acompanhar as NFs dos romaneios por silo (1 a 9): quais já foram lan�
 - Clique em uma NF para marcá-la como **OK** (ou desfazer)
 - Importação de CSV para marcar várias NFs como concluídas de uma vez
 - Login com **nome + senha geral** (a senha fica no Supabase; só o dono do Supabase troca, e isso desconecta todo mundo)
-- **Meta de itens por silo**: defina quantos itens quer lançar (ex.: 30) e o site mostra a porcentagem (15 lançadas = 50%)
+- **Silos editáveis**: começa com os silos 1 a 9; use **+ Adicionar silo** na barra lateral para criar outros (10, 11…) e remova silos vazios
 - Inclusão, edição e exclusão de NFs direto pelo site, com **Adicionado por** e **Lançado por**
 - Exportação da lista filtrada em CSV
 
@@ -66,7 +66,7 @@ A senha fica guardada no Supabase (nunca no código do site), como a senha de um
    - E-mail: `acesso@silos.app`
    - Senha: a senha geral que você quiser
    - Marque **Auto Confirm User**
-2. **SQL Editor**: rode [`supabase/migracao-senha-geral.sql`](supabase/migracao-senha-geral.sql), [`supabase/migracao-sessoes.sql`](supabase/migracao-sessoes.sql) e [`supabase/migracao-metas.sql`](supabase/migracao-metas.sql) (quem instalou do zero com o `schema.sql` atual não precisa).
+2. **SQL Editor**: rode [`supabase/migracao-senha-geral.sql`](supabase/migracao-senha-geral.sql), [`supabase/migracao-sessoes.sql`](supabase/migracao-sessoes.sql) e [`supabase/migracao-silos.sql`](supabase/migracao-silos.sql) (quem instalou do zero com o `schema.sql` atual não precisa).
 3. **Authentication > Sign In / Providers > Email**: deixe o provedor *Email* ligado. Recomendo **desligar "Allow new users to sign up"**, para ninguém criar contas.
 
 O site lembra o último nome usado em cada navegador ("Entrando como **Fulano**"), então a pessoa só digita a senha. Nomes são padronizados (`isaque` → `Isaque`).

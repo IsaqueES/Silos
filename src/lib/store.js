@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { SILOS_PADRAO } from './stats.js'
 
 // Aceita a URL com caminho extra (ex.: .../rest/v1/ ou .../auth/v1/callback): usa só a origem.
 function projectUrl(raw) {
@@ -64,16 +65,18 @@ const remote = {
     const { error } = await supabase.from('nfs').delete().eq('silo', silo)
     if (error) throw error
   },
-  async fetchMetas() {
-    const { data, error } = await supabase.from('silos_meta').select('silo, meta')
+  // lista de silos (tabela silos)
+  async fetchSiloList() {
+    const { data, error } = await supabase.from('silos').select('silo')
     if (error) throw error
-    return Object.fromEntries(data.map((m) => [m.silo, m.meta]))
+    return data.map((d) => d.silo)
   },
-  async setMeta(silo, meta, por) {
-    const q = supabase.from('silos_meta')
-    const { error } = meta
-      ? await q.upsert({ silo, meta, atualizado_por: por, atualizado_em: new Date().toISOString() }, { onConflict: 'silo' })
-      : await q.delete().eq('silo', silo)
+  async addSiloToList(silo, por) {
+    const { error } = await supabase.from('silos').insert({ silo, criado_por: por })
+    if (error) throw error
+  },
+  async dropSiloFromList(silo) {
+    const { error } = await supabase.from('silos').delete().eq('silo', silo)
     if (error) throw error
   },
   async clear() {
@@ -125,18 +128,18 @@ const local = {
   async removeSilo(silo) {
     save(load().filter((r) => r.silo !== silo))
   },
-  async fetchMetas() {
+  async fetchSiloList() {
     try {
-      return JSON.parse(localStorage.getItem('silos:metas')) ?? {}
+      return JSON.parse(localStorage.getItem('silos:lista')) ?? SILOS_PADRAO
     } catch {
-      return {}
+      return SILOS_PADRAO
     }
   },
-  async setMeta(silo, meta) {
-    const metas = await local.fetchMetas()
-    if (meta) metas[silo] = meta
-    else delete metas[silo]
-    localStorage.setItem('silos:metas', JSON.stringify(metas))
+  async addSiloToList(silo) {
+    localStorage.setItem('silos:lista', JSON.stringify([...(await local.fetchSiloList()), silo]))
+  },
+  async dropSiloFromList(silo) {
+    localStorage.setItem('silos:lista', JSON.stringify((await local.fetchSiloList()).filter((x) => x !== silo)))
   },
   async clear() {
     save([])
