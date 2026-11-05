@@ -3,7 +3,7 @@ import { fmtNum, stats } from '../lib/stats.js'
 import { toCsv } from '../lib/csv.js'
 import DangerZone from './DangerZone.jsx'
 
-export default function SiloView({ silo, label, rows, onSetStatus, onEdit, onClearSilo }) {
+export default function SiloView({ silo, label, rows, siloTotal, onSetStatus, onEdit, onClearSilo, onRemoveSilo }) {
   const invalid = silo === 'outros'
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('todas')
@@ -89,8 +89,9 @@ export default function SiloView({ silo, label, rows, onSetStatus, onEdit, onCle
 
       {invalid && (
         <div className="alert warn static">
-          Estas NFs têm um SILO fora de 1–9 (provavelmente erro de digitação no CSV). Use <b>✎</b> para corrigir o silo
-          de cada uma, ou apague todas na zona de perigo abaixo.
+          Estas NFs têm um SILO que não está na lista de silos (provavelmente erro de digitação na planilha). Use <b>✎</b>{' '}
+          para corrigir o silo de cada uma, ou, se o silo existe de verdade, use <b>+ Adicionar silo</b> na barra lateral e
+          elas passam para ele. Para descartá-las, apague todas na zona de perigo abaixo.
         </div>
       )}
 
@@ -212,6 +213,22 @@ export default function SiloView({ silo, label, rows, onSetStatus, onEdit, onCle
         button={invalid ? 'Excluir todas as NFs com silo inválido' : 'Excluir todos os dados deste silo'}
         onClick={onClearSilo}
       />
+
+      {!invalid && (
+        <DangerZone
+          title="Remover silo"
+          text={
+            siloTotal > 0
+              ? `O Silo ${silo} ainda tem ${siloTotal} NF(s). Para tirá-lo da lista, exclua os dados dele primeiro.`
+              : `Tira o Silo ${silo} da lista (ele está vazio). Dá para adicioná-lo de novo depois.`
+          }
+          button="Remover este silo da lista"
+          disabled={siloTotal > 0}
+          onClick={() => {
+            if (confirm(`Remover o Silo ${silo} da lista de silos?`)) onRemoveSilo()
+          }}
+        />
+      )}
     </div>
   )
 }

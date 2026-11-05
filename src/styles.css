@@ -280,3 +280,8 @@ td.bad-silo { color: var(--danger); font-weight: 600; }
 
 .sheet-pick { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 .sheet-pick select { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font: inherit; color: var(--text); background: var(--panel); }
+
+.nav-add { margin-top: 6px; opacity: 0.75; font-size: 0.88rem; }
+.nav-add:hover { opacity: 1; }
+.nav-add .nav-icon { background: rgba(255, 255, 255, 0.12); font-size: 1.1rem; }
+.danger-zone + .danger-zone { margin-top: 12px; }

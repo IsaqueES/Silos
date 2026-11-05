@@ -7,7 +7,8 @@ import SiloView from './components/SiloView.jsx'
 import ImportDialog from './components/ImportDialog.jsx'
 import NfForm from './components/NfForm.jsx'
 import DangerDialog from './components/DangerDialog.jsx'
-import { SILOS } from './lib/stats.js'
+import { SILOS_PADRAO, sortSilos } from './lib/stats.js'
+import AddSiloDialog from './components/AddSiloDialog.jsx'
 import { rowKey } from './lib/csv.js'
 
 const NAME_KEY = 'silos:nome'
@@ -26,18 +27,21 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false)
   const [allowed, setAllowed] = useState(null)
   const [rows, setRows] = useState([])
+  const [silos, setSilos] = useState(SILOS_PADRAO) // lista de silos (editável pelo site)
+  const [silosLoaded, setSilosLoaded] = useState(false)
+  const [addSiloOpen, setAddSiloOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [view, setView] = useState(() => {
     const h = window.location.hash
-    return h === '#outros' ? 'outros' : h.match(/^#silo-([1-9])$/)?.[1] || 'geral'
+    return h === '#outros' ? 'outros' : h.match(/^#silo-(\d{1,3})$/)?.[1] || 'geral'
   })
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [importOpen, setImportOpen] = useState(false)
   const [form, setForm] = useState(null) // null | { row?: linha sendo editada }
-  const [danger, setDanger] = useState(null) // exclusão em massa aberta: '1'..'9' | 'outros' | 'tudo'
+  const [danger, setDanger] = useState(null) // exclusão em massa aberta: nº do silo | 'outros' | 'tudo'
   const [notice, setNotice] = useState('') // aviso na tela de login (ex.: senha alterada)
   const wasAllowed = useRef(false)
   const loggingOut = useRef(false)
@@ -85,7 +89,11 @@ export default function App() {
     setLoading(true)
     setError('')
     try {
-      setRows(await store.fetchAll())
+      // lista de silos: se a tabela ainda não existe (migração não rodada), vale a lista padrão 1–9
+      const [dados, lista] = await Promise.all([store.fetchAll(), store.fetchSiloList().catch(() => null)])
+      setRows(dados)
+      if (lista) setSilos(sortSilos(lista))
+      setSilosLoaded(true)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -223,7 +231,7 @@ export default function App() {
   }
 
   // Exclusões em massa (sempre no banco todo, não só no que passa no filtro de datas)
-  const invalidRows = rows.filter((r) => !SILOS.includes(r.silo))
+  const invalidRows = rows.filter((r) => !silos.includes(r.silo))
   const dangerInfo = (alvo) => {
     if (alvo === 'tudo')
       return {
@@ -239,7 +247,7 @@ export default function App() {
         title: 'Excluir NFs com silo inválido',
         phrase: 'EU DESEJO APAGAR TODOS OS DADOS DESTE SILO',
         count: invalidRows.length,
-        where: 'com SILO fora de 1–9',
+        where: 'com SILO que não está na lista de silos',
         run: () => store.remove(invalidRows.map((r) => r.id)),
         done: 'NFs com silo inválido apagadas.',
       }
@@ -258,6 +266,42 @@ export default function App() {
     if (danger === 'outros') setView('geral')
     await reload()
   }
+
+  // Adicionar / remover silos da lista
+  const addSilo = async (valor) => {
+    const n = Math.floor(Number(valor))
+    if (!(n >= 1 && n <= 999)) throw new Error('Digite um número de silo entre 1 e 999.')
+    const silo = String(n)
+    if (silos.includes(silo)) throw new Error(`O Silo ${silo} já existe.`)
+    try {
+      await store.addSiloToList(silo, nome)
+    } catch (e) {
+      throw new Error(
+        `Não foi possível adicionar: ${e.message}` +
+          (/silos/.test(e.message) ? ' — rode supabase/migracao-silos.sql no SQL Editor do Supabase.' : ''),
+      )
+    }
+    setSilos((l) => sortSilos([...l, silo]))
+    setView(silo)
+    setToast(`Silo ${silo} adicionado.`)
+  }
+
+  const removeSiloFromList = async (silo) => {
+    try {
+      if (rows.some((r) => r.silo === silo)) throw new Error('Este silo ainda tem NFs. Exclua os dados dele antes.')
+      await store.dropSiloFromList(silo)
+      setSilos((l) => l.filter((x) => x !== silo))
+      setView('geral')
+      setToast(`Silo ${silo} removido da lista.`)
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  // Abriu um silo que não existe (link antigo, silo removido em outro computador): volta para a visão geral
+  useEffect(() => {
+    if (silosLoaded && /^\d+$/.test(view) && !silos.includes(view)) setView('geral')
+  }, [view, silos, silosLoaded])
 
   // Corrigiu/apagou a última NF com silo inválido: volta para a visão geral
   useEffect(() => {
@@ -283,10 +327,10 @@ export default function App() {
       </div>
     )
 
-  const siloRows = SILOS.includes(view)
+  const siloRows = silos.includes(view)
     ? filtered.filter((r) => r.silo === view)
     : view === 'outros'
-      ? filtered.filter((r) => !SILOS.includes(r.silo))
+      ? filtered.filter((r) => !silos.includes(r.silo))
       : null
 
   return (
@@ -295,6 +339,8 @@ export default function App() {
         rows={filtered}
         view={view}
         onSelect={setView}
+        silos={silos}
+        onAddSilo={() => setAddSiloOpen(true)}
         invalidCount={invalidRows.length}
         nome={nome}
         onLogout={() => logout()}
@@ -351,9 +397,11 @@ export default function App() {
             onSetStatus={setStatus}
             onEdit={(row) => setForm({ row })}
             onClearSilo={() => setDanger(view)}
+            siloTotal={rows.filter((r) => r.silo === view).length}
+            onRemoveSilo={() => removeSiloFromList(view)}
           />
         ) : (
-          <Overview rows={filtered} onSelect={setView} onClearAll={() => setDanger('tudo')} totalRows={rows.length} />
+          <Overview rows={filtered} silos={silos} onSelect={setView} onClearAll={() => setDanger('tudo')} totalRows={rows.length} />
         )}
       </main>
 
@@ -368,12 +416,14 @@ export default function App() {
       {form && (
         <NfForm
           row={form.row}
-          defaultSilo={SILOS.includes(view) ? view : '1'}
+          silos={silos}
+          defaultSilo={silos.includes(view) ? view : silos[0] || ''}
           onClose={() => setForm(null)}
           onSave={(data) => saveNf(data, form.row)}
           onDelete={deleteNf}
         />
       )}
+      {addSiloOpen && <AddSiloDialog silos={silos} onClose={() => setAddSiloOpen(false)} onAdd={addSilo} />}
       {danger &&
         (() => {
           const info = dangerInfo(danger)

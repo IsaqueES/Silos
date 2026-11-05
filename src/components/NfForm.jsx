@@ -1,19 +1,18 @@
 import { useState } from 'react'
-import { SILOS } from '../lib/stats.js'
 import { formatDate, normalizeNf, parseDate } from '../lib/csv.js'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
 // Formulário para incluir uma NF pelo site (ou editar/excluir uma existente).
-export default function NfForm({ row, defaultSilo, onClose, onSave, onDelete }) {
+export default function NfForm({ row, silos, defaultSilo, onClose, onSave, onDelete }) {
   const editing = !!row
   const [f, setF] = useState(() => ({
     nf: row?.nf ?? '',
     nor: row?.nor ?? '',
     qtd: row?.qtd ?? '',
     dep: row?.dep ?? '',
-    // silo inválido (ex.: "10" vindo do CSV) obriga a escolher um silo de 1 a 9
-    silo: row ? (SILOS.includes(row.silo) ? row.silo : '') : defaultSilo || '1',
+    // silo que não está na lista (ex.: "10" vindo da planilha) obriga a escolher um silo existente
+    silo: row ? (silos.includes(row.silo) ? row.silo : '') : defaultSilo || silos[0] || '',
     lote: row?.lote ?? '',
     material: row?.material ?? '',
     dtv: row ? (row.dtv_date ?? parseDate(row.dtv) ?? '') : today(),
@@ -102,7 +101,7 @@ export default function NfForm({ row, defaultSilo, onClose, onSave, onDelete }) 
                   {row?.silo ? `Inválido (${row.silo}) — escolha` : 'Escolha'}
                 </option>
               )}
-              {SILOS.map((s) => (
+              {silos.map((s) => (
                 <option key={s} value={s}>
                   Silo {s}
                 </option>

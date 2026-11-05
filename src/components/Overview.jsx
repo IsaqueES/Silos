@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { SILOS, fmtNum, stats } from '../lib/stats.js'
+import { fmtNum, stats } from '../lib/stats.js'
 import { formatDate } from '../lib/csv.js'
 import DangerZone from './DangerZone.jsx'
 
@@ -10,11 +10,11 @@ const SERIES = [
   { key: 'pending', label: 'Pendentes', color: 'var(--chart-pend)' },
 ]
 
-export default function Overview({ rows, onSelect, onClearAll, totalRows }) {
+export default function Overview({ rows, silos, onSelect, onClearAll, totalRows }) {
   const all = stats(rows)
   const [tip, setTip] = useState(null)
 
-  const perSilo = useMemo(() => SILOS.map((s) => ({ silo: s, ...stats(rows.filter((r) => r.silo === s)) })), [rows])
+  const perSilo = useMemo(() => silos.map((s) => ({ silo: s, ...stats(rows.filter((r) => r.silo === s)) })), [rows, silos])
 
   const perDate = useMemo(() => {
     const map = new Map()

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { SILOS_PADRAO } from './stats.js'
 
 // Aceita a URL com caminho extra (ex.: .../rest/v1/ ou .../auth/v1/callback): usa só a origem.
 function projectUrl(raw) {
@@ -64,6 +65,20 @@ const remote = {
     const { error } = await supabase.from('nfs').delete().eq('silo', silo)
     if (error) throw error
   },
+  // lista de silos (tabela silos)
+  async fetchSiloList() {
+    const { data, error } = await supabase.from('silos').select('silo')
+    if (error) throw error
+    return data.map((d) => d.silo)
+  },
+  async addSiloToList(silo, por) {
+    const { error } = await supabase.from('silos').insert({ silo, criado_por: por })
+    if (error) throw error
+  },
+  async dropSiloFromList(silo) {
+    const { error } = await supabase.from('silos').delete().eq('silo', silo)
+    if (error) throw error
+  },
   async clear() {
     const { error } = await supabase.from('nfs').delete().gte('id', 0)
     if (error) throw error
@@ -112,6 +127,19 @@ const local = {
   },
   async removeSilo(silo) {
     save(load().filter((r) => r.silo !== silo))
+  },
+  async fetchSiloList() {
+    try {
+      return JSON.parse(localStorage.getItem('silos:lista')) ?? SILOS_PADRAO
+    } catch {
+      return SILOS_PADRAO
+    }
+  },
+  async addSiloToList(silo) {
+    localStorage.setItem('silos:lista', JSON.stringify([...(await local.fetchSiloList()), silo]))
+  },
+  async dropSiloFromList(silo) {
+    localStorage.setItem('silos:lista', JSON.stringify((await local.fetchSiloList()).filter((x) => x !== silo)))
   },
   async clear() {
     save([])

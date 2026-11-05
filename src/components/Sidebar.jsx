@@ -1,6 +1,6 @@
-import { SILOS, stats } from '../lib/stats.js'
+import { stats } from '../lib/stats.js'
 
-export default function Sidebar({ rows, view, onSelect, nome, onLogout, invalidCount }) {
+export default function Sidebar({ rows, silos, view, onSelect, nome, onLogout, invalidCount, onAddSilo }) {
   const all = stats(rows)
   return (
     <aside className="sidebar">
@@ -15,7 +15,7 @@ export default function Sidebar({ rows, view, onSelect, nome, onLogout, invalidC
           <span className="nav-count">{all.pending}</span>
         </button>
         <div className="nav-section">Silos</div>
-        {SILOS.map((s) => {
+        {silos.map((s) => {
           const st = stats(rows.filter((r) => r.silo === s))
           return (
             <button key={s} className={`nav-item ${view === s ? 'active' : ''}`} onClick={() => onSelect(s)}>
@@ -32,11 +32,15 @@ export default function Sidebar({ rows, view, onSelect, nome, onLogout, invalidC
             </button>
           )
         })}
+        <button className="nav-item nav-add" onClick={onAddSilo}>
+          <span className="nav-icon">+</span>
+          <span className="nav-label">Adicionar silo</span>
+        </button>
         {invalidCount > 0 && (
           <button
             className={`nav-item nav-invalid ${view === 'outros' ? 'active' : ''}`}
             onClick={() => onSelect('outros')}
-            title="NFs com SILO fora de 1–9"
+            title="NFs cujo SILO não está na lista de silos"
           >
             <span className="nav-icon">!</span>
             <span className="nav-label">Silo inválido</span>

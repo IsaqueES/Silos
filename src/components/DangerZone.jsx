@@ -1,8 +1,8 @@
-export default function DangerZone({ text, button, onClick, disabled }) {
+export default function DangerZone({ title = 'Zona de perigo', text, button, onClick, disabled }) {
   return (
     <div className="danger-zone">
       <div>
-        <b>Zona de perigo</b>
+        <b>{title}</b>
         <div className="muted">{text}</div>
       </div>
       <button className="btn danger-outline" onClick={onClick} disabled={disabled}>
